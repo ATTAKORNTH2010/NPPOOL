@@ -30,6 +30,8 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 | Excel / Google Sheets | ชีต = ตาราง, หัวคอลัมน์ = field, สูตร = กฎธุรกิจ, VBA / Apps Script = logic, Data validation = ค่าที่เลือกได้ (enum) | Data model + กฎธุรกิจ |
 | หน้าจอ / ภาพหน้าจอ / ระบบที่รันได้ | ทำ screen inventory, รายการ field, ข้อความแจ้งเตือน, ลำดับการกด (black-box) | UI spec, user flow |
 | เอกสาร / แบบฟอร์ม / รายงาน | layout, รูปแบบเลขที่เอกสาร, สูตรยอดรวม/ภาษี, การปัดเศษ | Report spec |
+| ตัวที่ deploy แล้ว (โฟลเดอร์ publish, DLL) | เทียบกับซอร์ส: ชื่อ controller/view ที่ compile อยู่ (เช่น `grep -a -o` ชื่อ type ใน DLL), วันที่ build, config ที่ใช้จริง (ดูแค่รูปแบบ ไม่ดูค่า) | รู้ว่าระบบที่ใช้งานจริงเป็นเวอร์ชันไหน |
+| บันทึกการสั่งงาน / prompt ที่เคยให้ AI / chat log | อ่านตามลำดับเวลาเป็นประวัติ requirement | เจตนาของฟีเจอร์ — แยก “ตั้งใจ” ออกจาก “บั๊ก” |
 | ความรู้ของผู้ใช้ | ถามตามรายการคำถามค้าง ทีละเรื่อง | กฎที่ไม่มีในโค้ด |
 
 ## 3. ขั้นตอนและเช็กลิสต์ (สอดคล้องกับ plan.md)
@@ -41,6 +43,9 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 - [ ] หาวิธีรันและ config (ความลับ: จดตำแหน่ง ห้ามคัดลอกค่า)
 - [ ] รายการหน้าจอ/เมนู, รายงาน, การเชื่อมต่อภายนอก, งานตั้งเวลา, ไฟล์อัปโหลด
 - [ ] ตรวจ encoding ภาษาไทยและรูปแบบวันที่ (ค.ศ. / พ.ศ.)
+- [ ] ทำรายการ endpoint ทั้งหมด + สิทธิ์ที่ server บังคับจริง (เมนูที่ซ่อนตามบทบาทไม่ใช่การตรวจสิทธิ์)
+- [ ] เทียบซอร์สกับตัวที่ deploy อยู่ เพื่อรู้ว่าระบบที่ใช้งานจริงเป็นเวอร์ชันไหน
+- [ ] สิ่งที่ต้องดึงจากฐานข้อมูลจริง (จำนวนแถว, FK, คุณภาพข้อมูล) → เตรียมสคริปต์อ่านอย่างเดียวที่ให้ผลเป็นตัวเลขสรุป ให้ผู้ใช้รันหรืออนุญาตก่อน
 - [ ] เขียน `docs/rea/01-inventory.md` + คำถามค้าง
 
 สิ่งที่มักพบในระบบงานขนส่ง/โลจิสติกส์ (ใช้เป็นเช็กลิสต์สำหรับค้นหา **ไม่ใช่ข้อสรุป**): ลูกค้า, ผู้ส่ง-ผู้รับ, ใบงาน/ใบสั่งขนส่ง, รถ, คนขับ, เส้นทาง, อัตราค่าขนส่ง, สถานะการขนส่ง, หลักฐานการส่ง (รูป/ลายเซ็น), ใบแจ้งหนี้/ใบเสร็จ
@@ -161,6 +166,9 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 | SQL Server | `money` / `decimal(p,s)` | `numeric(p,s)` |
 | SQL Server | `uniqueidentifier` | `uuid` |
 | SQL Server | `int IDENTITY` | `integer generated always as identity` |
+| SQL Server | `varchar` / `char` ที่ collation `Thai_*` | `text` — ข้อมูลเดิมเป็น code page 874 ต้องแปลงเป็น UTF-8 ตอนย้าย |
+| SQL Server | `varchar(max)` / `nvarchar(max)` | `text` |
+| SQL Server | `date` / `time` | `date` / `time` |
 | MySQL | `tinyint(1)` | `boolean` |
 | MySQL | `enum(...)` | `text` + `check` หรือ Postgres enum |
 | MS Access | Yes/No · Currency · AutoNumber · Long Text | `boolean` · `numeric(19,4)` · identity · `text` |
@@ -205,6 +213,19 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 - การเรียงชื่อภาษาไทย: ทดสอบ collation ของ Postgres หรือเรียงฝั่งแอปด้วย `Intl.Collator('th')`
 - ข้อมูลส่วนบุคคล (ชื่อ, เบอร์โทร, เลขบัตรประชาชน, ที่อยู่) ห้าม commit; ข้อมูลตัวอย่างต้องปิดบังก่อน
 
+### ระบบเดิมที่เป็น ASP.NET Core + SQL Server
+
+- ไฟล์ `appsettings_xxx.json` (ชื่อไม่ใช่รูปแบบ `appsettings.{Environment}.json`) ไม่ถูกโหลดอัตโนมัติ — config ที่ใช้จริงคือ `appsettings.json` ของเครื่องนั้น
+- Razor view ถูก compile รวมใน DLL หลัก (ชื่อ type `Views_<Controller>_<Action>`) — ใช้ตรวจว่า build ไหนมีหน้าจออะไร
+- Password hash ของ ASP.NET Core Identity ที่ขึ้นต้น `AQAAAA` = รูปแบบ V3 (PBKDF2, header ใน hash ระบุพารามิเตอร์) — จะย้ายผู้ใช้พร้อมรหัสเดิมต้องเขียนตัวตรวจ hash แบบเดียวกันใน Node.js มิฉะนั้นให้ผู้ใช้ตั้งรหัสใหม่
+- `<fieldset disabled>` ทำให้ช่องในฟอร์มไม่ถูกส่ง — หน้าจอโหมด “ดู/แก้ไข” อาจบันทึกต่างจากที่เห็น ต้องไล่จาก controller
+
+### สคริปต์สำรวจฐานข้อมูล (T-SQL)
+
+- SELECT อย่างเดียว + `SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED` เพื่อไม่ล็อกระบบที่ใช้งานอยู่ · ผลเป็นตัวเลขสรุป ไม่ดึงแถวที่มีข้อมูลส่วนบุคคล
+- ห้ามใช้ subquery ใน aggregate (`SUM(CASE WHEN EXISTS (...) ...)` → error 130) — ใช้ `LEFT JOIN` แทน
+- ไฟล์ `.sql` ที่มีภาษาไทยให้บันทึกเป็น UTF-8 แบบมี BOM, ใช้ `NCHAR(รหัส)` แทนอักษรไทยใน literal ที่มีผลต่อผลลัพธ์ และรันด้วย `sqlcmd -f 65001`
+
 ### Repo และความปลอดภัย
 
 - Repo `ATTAKORNTH2010/NPPOOL` เป็น **public** — `.env*` ต้องอยู่ใน `.gitignore` และความลับเก็บบน Vercel เท่านั้น
@@ -227,3 +248,10 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 | 2026-11-25 | Repo เป็น public — ตรวจ visibility ก่อนรับงานเดิม/ข้อมูลเข้า repo |
 | 2026-11-25 | Windows ไม่แยกตัวพิมพ์เล็ก-ใหญ่ของชื่อโฟลเดอร์ — clone repo `NPPOOL` ไว้คนละชื่อกับโฟลเดอร์งานเดิม `NPPool` (ใช้ `C:\Projects\NPPOOL-web`) |
 | 2026-11-25 | เปิด Remote Control แล้วแต่รายการโฟลเดอร์ของเซสชันคลาวด์ยังว่าง — จึงใช้วิธี C (ทำงานในเซสชันบนเครื่องผู้ใช้) |
+| 2026-11-26 | ค้นหาความลับด้วยคำสั่งที่แสดงเนื้อหาบรรทัด (เช่น grep แบบ content) จะพิมพ์ค่าความลับลง log ของเซสชัน — ใช้โหมดแสดงชื่อไฟล์/นับจำนวน หรือสคริปต์ที่บอกแค่ “รูปร่าง” ของค่า (มีคีย์อะไร ยาวเท่าไร ค่าซ้ำกันไหม) |
+| 2026-11-26 | ไฟล์ `.sql` ที่วางในโฟลเดอร์งานเดิมเป็นฉบับร่างที่ไม่ตรงของจริง — ยึด export ของ `INFORMATION_SCHEMA` หรือฐานข้อมูลจริง และเทียบกับ SQL ในโค้ดทุกครั้ง |
+| 2026-11-26 | บันทึก prompt ที่ผู้พัฒนาสั่ง AI (`Gemini_NPPOOL.txt`) คือประวัติ requirement ที่ดีที่สุด — อ่านก่อนตัดสินว่าพฤติกรรมไหน “ตั้งใจ” หรือ “บั๊ก” |
+| 2026-11-26 | ซอร์สใหม่กว่าตัวที่ publish (build 2026-03-21 ยังไม่มีหน้าพิมพ์ PDF และหน้าสถานที่) — ตรวจชื่อ controller/view ใน DLL ก่อนสรุปว่าระบบที่ใช้งานจริงมีอะไร |
+| 2026-11-26 | ไม่ใช้ credential จาก config ของงานเดิมเชื่อมต่อฐานข้อมูลเอง — เตรียมสคริปต์อ่านอย่างเดียวที่ให้ผลเป็นตัวเลขสรุป แล้วให้ผู้ใช้รันหรืออนุญาตก่อน |
+| 2026-11-26 | เมนูที่ซ่อนตามบทบาทไม่ใช่การตรวจสิทธิ์ — ทำรายการ endpoint พร้อมสิทธิ์ที่ server บังคับจริงเสมอ (พบหน้าที่ไม่ตรวจ login เลย) |
+| 2026-11-26 | โฟลเดอร์ clone จริงอาจไม่ตรงชื่อในแผน (ใช้ `C:\Projects\WebNPPOOL`) — ยืนยัน path จาก working directory ของเซสชันก่อนเริ่ม |

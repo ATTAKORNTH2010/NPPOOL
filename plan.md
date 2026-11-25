@@ -1,6 +1,6 @@
 # NPPool — แผนงาน REA (Reverse Engineering Anything)
 
-> **สถานะ:** ฉบับร่าง v0.1 · 2026-11-25 · ขั้นที่ 0 เสร็จ (เลือกวิธี C) · **ขั้นที่ 1 ทำต่อในเซสชันบนเครื่องผู้ใช้**
+> **สถานะ:** ฉบับร่าง v0.2 · 2026-11-26 · ขั้นที่ 0 เสร็จ (เลือกวิธี C) · ขั้นที่ 1 เสร็จ → [docs/rea/01-inventory.md](docs/rea/01-inventory.md) · **⏸ รออนุมัติขั้นที่ 2**
 > บันทึกการทำงาน → [Roadmap.md](Roadmap.md) · วิธีการ แม่แบบ และความรู้ → [skill.md](skill.md)
 
 ---
@@ -14,14 +14,15 @@
 
 หลักการ: ทำให้ **ฟีเจอร์และกฎทางธุรกิจเทียบเท่าระบบเดิม (feature parity)** ก่อน แล้วจึงปรับปรุงเพิ่มเติม
 
-## 2. สิ่งที่รู้แล้ว / ยังไม่รู้ (ณ 2026-11-25)
+## 2. สิ่งที่รู้แล้ว / ยังไม่รู้ (ณ 2026-11-26)
 
 | หัวข้อ | สถานะ |
 |---|---|
-| GitHub repo `ATTAKORNTH2010/NPPOOL` | มีเพียง `README.md` (“Logistic app”) 1 commit — ยังไม่มีโค้ดของงานเดิม |
+| GitHub repo `ATTAKORNTH2010/NPPOOL` | เอกสาร REA อยู่บน branch `claude/nppool-reverse-engineering-gvbib9` — ไม่มีโค้ดของงานเดิม (ตั้งใจไม่นำขึ้น) |
 | การมองเห็น repo | **public** → ห้าม commit รหัสผ่าน, API key, connection string หรือข้อมูลลูกค้า |
-| งานเดิม `C:\Projects\NPPool` | ⛔ ยังเข้าถึงไม่ได้ — อยู่บนเครื่อง Windows ของผู้ใช้ และยังไม่ได้แชร์ให้เซสชันคลาวด์ (ดูหัวข้อ 5) |
-| ภาษา/เฟรมเวิร์กเดิม, ฟีเจอร์, ฐานข้อมูล, ผู้ใช้และสิทธิ์ | ❓ ยังไม่ทราบ — ได้จากขั้นที่ 1 (จะไม่เดาล่วงหน้า) |
+| งานเดิม `C:\Projects\NPPool` | ✅ อ่านได้จากเซสชันบนเครื่องผู้ใช้ (วิธี C) |
+| ภาษา/เฟรมเวิร์กเดิม, ฟีเจอร์, ฐานข้อมูล, ผู้ใช้และสิทธิ์ | ✅ ASP.NET Core 8 MVC + Dapper + SQL Server · 9 หน้าจอ · 12 ตาราง + 14 view · 3 บทบาท — ดู [01-inventory.md](docs/rea/01-inventory.md) |
+| จำนวนข้อมูล, FK, ระบบที่ใช้งานจริง, กฎธุรกิจที่ไม่อยู่ในโค้ด | ❓ คำถามค้าง Q1–Q28 ใน 01-inventory.md หัวข้อ 15 |
 
 ## 3. ทิศทางเทคโนโลยีที่เสนอ (ตรวจเวอร์ชันจาก npm เมื่อ 2026-11-25)
 
@@ -34,7 +35,8 @@
 | ORM / Migration | **Drizzle ORM + drizzle-kit** | type-safe, เบา, เหมาะกับ serverless, migration เป็นไฟล์ SQL อ่านตรวจง่าย |
 | Validation | Zod | ตรวจข้อมูลเข้าที่ Server Action / API ทุกจุด |
 | UI | Tailwind CSS v4 (+ shadcn/ui ถ้าเหมาะ) | ยืนยันในขั้นที่ 3 หลังเห็น UI เดิม |
-| Auth | ยังไม่เลือก — ตัวเลือก: Auth.js, Better Auth, Clerk | ขึ้นกับระบบผู้ใช้/สิทธิ์ของงานเดิม → ตัดสินใจขั้นที่ 3 |
+| Auth | ยังไม่เลือก — ตัวเลือก: Auth.js, Better Auth, Clerk | ระบบเดิม = username/password + 3 บทบาท, hash แบบ ASP.NET Core Identity (01-inventory หัวข้อ 6.2, Q7) → ตัดสินใจขั้นที่ 3 |
+| PDF | ยังไม่เลือก | ระบบเดิมใช้ wkhtmltopdf (โปรแกรม .exe บน Windows) ซึ่งไม่เหมาะกับ Vercel → เลือกวิธีใหม่ในขั้นที่ 3 |
 | Test | Vitest (unit) + Playwright (E2E / เทียบผลกับระบบเดิม) | |
 | CI/CD | GitHub Actions (lint, typecheck, test, build) + Vercel Git Integration | Preview ทุก branch, Production จาก `main` |
 | Region | ฐานข้อมูลและ Functions อยู่ Singapore (ใกล้ผู้ใช้ในไทย) | ยืนยันในขั้นที่ 4 |
@@ -63,7 +65,7 @@
 
 **ผลลัพธ์:** เอกสาร 3 ไฟล์ + เข้าถึงงานเดิมได้ · **⏸ อนุมัติแผน → เริ่มขั้นที่ 1**
 
-### ขั้นที่ 1 — สำรวจและทำบัญชีรายการ (Discovery & Inventory) ← *ถัดไป · ทำในเซสชันบนเครื่องผู้ใช้*
+### ขั้นที่ 1 — สำรวจและทำบัญชีรายการ (Discovery & Inventory) ⏸ *เสร็จ 2026-11-26 · รออนุมัติ*
 
 อ่านอย่างเดียว ไม่แก้ไขงานเดิม
 
@@ -73,9 +75,9 @@
 - ความลับใน config (จดว่า “อยู่ที่ไหน” เท่านั้น ไม่คัดลอกค่า)
 - รวบรวมคำถามค้าง (Open Questions)
 
-**ผลลัพธ์:** `docs/rea/01-inventory.md` · **⏸ อนุมัติ → ขั้นที่ 2**
+**ผลลัพธ์:** `docs/rea/01-inventory.md` + `docs/rea/sql/01-inventory-readonly.sql` · **⏸ อนุมัติ → ขั้นที่ 2**
 
-### ขั้นที่ 2 — ถอดแบบระบบเดิม (Analysis)
+### ขั้นที่ 2 — ถอดแบบระบบเดิม (Analysis) ← *ถัดไป*
 
 - Domain model / ER diagram + Data dictionary
 - ผู้ใช้ บทบาท และสิทธิ์
@@ -151,7 +153,7 @@
 โครงสร้างบนเครื่องผู้ใช้:
 
 - `C:\Projects\NPPool` — งานเดิม (อ่านอย่างเดียว ไม่นำขึ้น GitHub)
-- `C:\Projects\NPPOOL-web` — clone ของ repo นี้ ใช้เก็บเอกสาร REA และโค้ด Next.js (ชื่อต้องไม่ซ้ำกับ `NPPool` เพราะ Windows ไม่แยกตัวพิมพ์เล็ก-ใหญ่)
+- `C:\Projects\NPPOOL-web` — clone ของ repo นี้ ใช้เก็บเอกสาร REA และโค้ด Next.js (ชื่อต้องไม่ซ้ำกับ `NPPool` เพราะ Windows ไม่แยกตัวพิมพ์เล็ก-ใหญ่) — ผู้ใช้ clone จริงไว้ที่ `C:\Projects\WebNPPOOL`
 
 1. Clone repo บน branch งาน
 
