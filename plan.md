@@ -1,6 +1,6 @@
 # NPPool — แผนงาน REA (Reverse Engineering Anything)
 
-> **สถานะ:** ฉบับร่าง v0.2 · 2026-11-26 · ขั้นที่ 0 เสร็จ (เลือกวิธี C) · ขั้นที่ 1 เสร็จ → [docs/rea/01-inventory.md](docs/rea/01-inventory.md) · **⏸ รออนุมัติขั้นที่ 2**
+> **สถานะ:** ฉบับร่าง v0.3 · 2026-11-26 · ขั้นที่ 0–1 เสร็จและอนุมัติแล้ว · ขั้นที่ 2 เสร็จ → [02](docs/rea/02-domain-model.md) · [03](docs/rea/03-feature-parity.md) · [04](docs/rea/04-business-rules.md) · **⏸ รอยืนยันการถอดแบบ + ขอบเขต MVP ก่อนเริ่มขั้นที่ 3**
 > บันทึกการทำงาน → [Roadmap.md](Roadmap.md) · วิธีการ แม่แบบ และความรู้ → [skill.md](skill.md)
 
 ---
@@ -22,7 +22,9 @@
 | การมองเห็น repo | **public** → ห้าม commit รหัสผ่าน, API key, connection string หรือข้อมูลลูกค้า |
 | งานเดิม `C:\Projects\NPPool` | ✅ อ่านได้จากเซสชันบนเครื่องผู้ใช้ (วิธี C) |
 | ภาษา/เฟรมเวิร์กเดิม, ฟีเจอร์, ฐานข้อมูล, ผู้ใช้และสิทธิ์ | ✅ ASP.NET Core 8 MVC + Dapper + SQL Server · 9 หน้าจอ · 12 ตาราง + 14 view · 3 บทบาท — ดู [01-inventory.md](docs/rea/01-inventory.md) |
-| จำนวนข้อมูล, FK, ระบบที่ใช้งานจริง, กฎธุรกิจที่ไม่อยู่ในโค้ด | ❓ คำถามค้าง Q1–Q28 ใน 01-inventory.md หัวข้อ 15 |
+| ระบบที่ใช้งานจริงและข้อมูล | ✅ ระบบไม่ได้เปิดใช้งานแล้ว (ใช้ซอร์สล่าสุดเป็นต้นแบบ) · ฐานข้อมูลบนเครื่องผู้ใช้ไม่มีใบงาน ข้อมูลพื้นฐานเป็นข้อมูลทดสอบ · ไม่มี FK (01-inventory หัวข้อ 8.0) |
+| Domain model, กฎธุรกิจ, Parity Matrix | ✅ ขั้นที่ 2 — [02](docs/rea/02-domain-model.md) · [03](docs/rea/03-feature-parity.md) · [04](docs/rea/04-business-rules.md) |
+| กฎธุรกิจที่ไม่อยู่ในโค้ด | ❓ คำถามค้างที่เหลือใน 01-inventory หัวข้อ 15 (ตอบแล้ว Q1–Q3) — มีค่าเริ่มต้นให้ใน 03 หัวข้อ 7 |
 
 ## 3. ทิศทางเทคโนโลยีที่เสนอ (ตรวจเวอร์ชันจาก npm เมื่อ 2026-11-25)
 
@@ -30,9 +32,9 @@
 |---|---|---|
 | Framework | **Next.js 16** (App Router, ล่าสุด 16.4.6) + React 19 + TypeScript | ตามโจทย์ และเป็นเฟรมเวิร์กที่ Vercel รองรับดีที่สุด |
 | Runtime | Node.js ≥ 20.9 (ใช้เวอร์ชัน LTS ที่ Vercel รองรับ — ยืนยันในขั้นที่ 4) | ข้อกำหนดขั้นต่ำของ Next.js 16 |
-| Database | **Postgres ผ่าน Vercel Marketplace → Neon** | Vercel Postgres เดิมเลิกให้บริการแล้ว (หัวข้อ 3.1) |
+| Database | **Postgres ผ่าน Vercel Marketplace → Neon** ✅ อนุมัติ (D3, 2026-11-26) | Vercel Postgres เดิมเลิกให้บริการแล้ว (หัวข้อ 3.1) |
 | DB driver | `@neondatabase/serverless` | ใช้แทน `@vercel/postgres` ที่ถูก deprecate |
-| ORM / Migration | **Drizzle ORM + drizzle-kit** | type-safe, เบา, เหมาะกับ serverless, migration เป็นไฟล์ SQL อ่านตรวจง่าย |
+| ORM / Migration | **Drizzle ORM + drizzle-kit** ✅ อนุมัติ (D4, 2026-11-26) | type-safe, เบา, เหมาะกับ serverless, migration เป็นไฟล์ SQL อ่านตรวจง่าย |
 | Validation | Zod | ตรวจข้อมูลเข้าที่ Server Action / API ทุกจุด |
 | UI | Tailwind CSS v4 (+ shadcn/ui ถ้าเหมาะ) | ยืนยันในขั้นที่ 3 หลังเห็น UI เดิม |
 | Auth | ยังไม่เลือก — ตัวเลือก: Auth.js, Better Auth, Clerk | ระบบเดิม = username/password + 3 บทบาท, hash แบบ ASP.NET Core Identity (01-inventory หัวข้อ 6.2, Q7) → ตัดสินใจขั้นที่ 3 |
@@ -47,7 +49,7 @@
 - วิธีปัจจุบันในการมี Postgres บน Vercel: Vercel Dashboard → Storage / Marketplace → **Neon** → ผูกกับโปรเจกต์ → Vercel ใส่ connection string เป็น Environment Variables ให้อัตโนมัติ, คิดเงินผ่านบิล Vercel, เปิดดูตาราง/รัน SQL จาก Dashboard ได้ (เอกสาร Neon ฉบับปัจจุบันเรียกฐานข้อมูลนี้ว่า “Lakebase Postgres”)
 - ตอนติดตั้งมี 2 แบบ: *Create New Neon Account* (Vercel จัดการบัญชีและบิลให้) หรือ *Link Existing Neon Account* — ความสามารถสร้าง database branch อัตโนมัติให้ Preview deployment ต่างกันระหว่างสองแบบ จะตรวจและเสนออีกครั้งในขั้นที่ 4
 - ทางเลือกอื่นใน Marketplace มีเช่น Supabase, Prisma Postgres, AWS Aurora Postgres — เสนอ Neon เพราะเป็นผู้ให้บริการที่รับช่วง Vercel Postgres เดิมโดยตรง
-- **จึงเสนอให้ใช้ Neon ผ่าน Vercel Marketplace ในฐานะ “Vercel Postgres” ฉบับปัจจุบัน** ← ต้องการอนุมัติ
+- **จึงเสนอให้ใช้ Neon ผ่าน Vercel Marketplace ในฐานะ “Vercel Postgres” ฉบับปัจจุบัน** — ✅ ผู้ใช้อนุมัติแล้ว 2026-11-26
 
 อ้างอิง: [Vercel Docs — Postgres](https://vercel.com/docs/postgres) · [Neon บน Vercel Marketplace](https://vercel.com/marketplace/neon) · [Neon — Vercel native integration](https://neon.com/docs/guides/vercel-native-integration) · [Neon — Vercel Postgres transition guide](https://neon.com/docs/guides/vercel-postgres-transition-guide)
 
@@ -60,12 +62,12 @@
 - [x] สำรวจ repo และตรวจเวอร์ชันเทคโนโลยีปัจจุบัน
 - [x] ร่าง `plan.md`, `Roadmap.md`, `skill.md`
 - [x] ผู้ใช้ให้ดำเนินการต่อตามแผน (2026-11-25)
-- [ ] ผู้ใช้ยืนยันทิศทางเทคโนโลยี (หัวข้อ 3) — ไม่กระทบขั้นที่ 1
+- [ ] ผู้ใช้ยืนยันทิศทางเทคโนโลยี (หัวข้อ 3) — D3 Neon และ D4 Drizzle อนุมัติแล้ว 2026-11-26 · D2 Next.js 16 + TypeScript ยังรอยืนยัน
 - [x] เลือกวิธีเข้าถึงงานเดิม — ลองวิธี B (Remote Control) แต่เซสชันคลาวด์ยังมองไม่เห็นโฟลเดอร์ → ผู้ใช้เลือก **วิธี C** (2026-11-25)
 
 **ผลลัพธ์:** เอกสาร 3 ไฟล์ + เข้าถึงงานเดิมได้ · **⏸ อนุมัติแผน → เริ่มขั้นที่ 1**
 
-### ขั้นที่ 1 — สำรวจและทำบัญชีรายการ (Discovery & Inventory) ⏸ *เสร็จ 2026-11-26 · รออนุมัติ*
+### ขั้นที่ 1 — สำรวจและทำบัญชีรายการ (Discovery & Inventory) ✅ *เสร็จและอนุมัติ 2026-11-26*
 
 อ่านอย่างเดียว ไม่แก้ไขงานเดิม
 
@@ -77,7 +79,7 @@
 
 **ผลลัพธ์:** `docs/rea/01-inventory.md` + `docs/rea/sql/01-inventory-readonly.sql` · **⏸ อนุมัติ → ขั้นที่ 2**
 
-### ขั้นที่ 2 — ถอดแบบระบบเดิม (Analysis) ← *ถัดไป*
+### ขั้นที่ 2 — ถอดแบบระบบเดิม (Analysis) ⏸ *เสร็จ 2026-11-26 · รอยืนยัน*
 
 - Domain model / ER diagram + Data dictionary
 - ผู้ใช้ บทบาท และสิทธิ์
@@ -85,9 +87,9 @@
 - กฎทางธุรกิจและสูตรคำนวณ พร้อมอ้างอิงตำแหน่งในระบบเดิม
 - **Feature Parity Matrix** — ฟีเจอร์ทั้งหมด + ระดับความสำคัญ (Must / Should / Could / Drop)
 
-**ผลลัพธ์:** `docs/rea/02-domain-model.md`, `03-feature-parity.md`, `04-business-rules.md` · **⏸ ผู้ใช้ยืนยันว่าถอดแบบถูกต้อง + เลือกขอบเขต MVP**
+**ผลลัพธ์:** `docs/rea/02-domain-model.md` (รวม role matrix และ user flow), `03-feature-parity.md`, `04-business-rules.md` · **⏸ ผู้ใช้ยืนยันว่าถอดแบบถูกต้อง + เลือกขอบเขต MVP** (รายการที่ขอยืนยันอยู่ใน 03 หัวข้อ 7)
 
-### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design)
+### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design) ← *ถัดไป*
 
 - สถาปัตยกรรม, โครงสร้างโฟลเดอร์, แผนผังหน้าจอ (route map)
 - Postgres schema ใหม่ + ตาราง mapping ข้อมูลเดิม → ใหม่
@@ -111,11 +113,13 @@
 ### ขั้นที่ 5 — สร้างฟีเจอร์ตาม Parity Matrix (Rebuild) — ทีละโมดูล
 
 - ต่อโมดูล: schema → migration → server logic → UI → test → เทียบกับระบบเดิม → อัปเดต matrix
-- ลำดับทั่วไป: ข้อมูลหลัก (master data) → ธุรกรรม → รายงาน → การเชื่อมต่อภายนอก (ยืนยันลำดับจริงในขั้นที่ 2)
+- ลำดับที่เสนอในขั้นที่ 2: ผู้ใช้และสิทธิ์ → ข้อมูลพื้นฐาน + ข้อมูลตั้งต้น → ใบงาน → ใบสั่งปฏิบัติงาน PDF (03-feature-parity หัวข้อ 5)
 
 **ผลลัพธ์:** โมดูลที่ผ่านการทดสอบบน Preview · **⏸ อนุมัติทีละโมดูล**
 
 ### ขั้นที่ 6 — ย้ายข้อมูล (Data Migration) — ถ้างานเดิมมีข้อมูลจริง
+
+> ผลขั้นที่ 1: ฐานข้อมูลเดิมไม่มีใบงานและข้อมูลพื้นฐานเป็นข้อมูลทดสอบ → ถ้าผู้ใช้ยืนยัน (Q25, D8) ขั้นนี้เหลือแค่ seed ข้อมูลอ้างอิง (สถานะงาน, ประเภทรถจริง, DOPA ถ้าต้องใช้)
 
 - Script ETL เดิม → Postgres ที่รันซ้ำได้ (idempotent)
 - ตรวจผล: จำนวนแถว, ผลรวมยอดเงิน/ยอดสำคัญ, สุ่มเทียบรายรายการ
@@ -232,10 +236,16 @@
 | เงื่อนไขหรือราคาของ Vercel / Neon เปลี่ยน | ตรวจตอนขั้นที่ 4; Drizzle ทำให้ย้ายผู้ให้บริการ Postgres ได้ |
 | ข้อมูลภาษาไทยจากระบบเก่าเข้ารหัสแบบเก่า (TIS-620 / Windows-874) หรือเก็บปีเป็น พ.ศ. | ตรวจในขั้นที่ 1 แปลงในขั้นที่ 6 (ดู skill.md) |
 
-## 8. สิ่งที่ขออนุมัติตอนนี้ (ขั้นที่ 0)
+## 8. สิ่งที่ขออนุมัติตอนนี้ (จบขั้นที่ 2)
 
-1. **โครงแผน 9 ขั้น** (ขั้นที่ 0–8) พร้อมจุดอนุมัติทุกขั้น
-2. **ทิศทางเทคโนโลยี** ในหัวข้อ 3 — โดยเฉพาะการใช้ **Neon ผ่าน Vercel Marketplace** แทน Vercel Postgres ที่เลิกให้บริการแล้ว และ Drizzle ORM
-3. **วิธีเข้าถึงงานเดิม** A / B / C (หัวข้อ 5)
+รายละเอียดอยู่ใน [03-feature-parity.md](docs/rea/03-feature-parity.md) หัวข้อ 7
 
-เมื่ออนุมัติและเข้าถึงงานเดิมได้ จะเริ่ม **ขั้นที่ 1** แล้วกลับมาขออนุมัติก่อนขึ้นขั้นที่ 2
+1. **การถอดแบบถูกต้อง** — domain model, data dictionary, role matrix, user flow (02) และกฎธุรกิจ (04)
+2. **ความสำคัญ M / S / C / Drop** และ **ขอบเขต MVP** (เสนอ = รายการ M 24 รายการ)
+3. **ความต่างที่ตั้งใจจากระบบเดิม** (ไม่ลอกข้อบกพร่อง)
+4. **คำถามที่มีผลต่อ MVP** — ถ้ายังไม่ตอบจะใช้ค่าเริ่มต้นที่ระบุไว้
+5. **D2** — Next.js 16 (App Router) + TypeScript บน Vercel
+
+ประวัติ: ขั้นที่ 0 อนุมัติ 2026-11-25 (โครงแผน, วิธี C) · ขั้นที่ 1 อนุมัติ 2026-11-26 (พร้อม D3 Neon, D4 Drizzle)
+
+เมื่ออนุมัติ จะเริ่ม **ขั้นที่ 3 (Target Design)** แล้วกลับมาขออนุมัติแบบก่อนขึ้นขั้นที่ 4

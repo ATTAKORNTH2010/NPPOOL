@@ -4,28 +4,28 @@
    เป้าหมาย : เติมช่องว่างใน docs/rea/01-inventory.md — จำนวนแถว, PK/FK/index,
               trigger/stored procedure, SQL Agent job และคุณภาพข้อมูลเบื้องต้น
    ใช้กับ   : SQL Server 2012 ขึ้นไป · ฐานข้อมูล TCRMIS · schema NPPOOL
-   สถานะ    : เขียนจาก schema ใน Database/TCRMIS_Database.xlsx — ยังไม่เคยรันกับฐานข้อมูลจริง
-              (เซสชัน REA ไม่ได้เชื่อมต่อฐานข้อมูล) ถ้าคำสั่งใด error ให้ส่งข้อความ error กลับมา
+   สถานะ    : รันแล้วกับ TCRMIS บนเครื่องผู้ใช้ 2026-11-26 (สรุปผลใน 01-inventory.md หัวข้อ 8.0)
    ความปลอดภัย:
      - มีแต่คำสั่ง SELECT — ไม่สร้าง แก้ หรือลบข้อมูลหรือ object ใดๆ
-     - ผลลัพธ์ออกแบบให้เป็น metadata และตัวเลขสรุปเท่านั้น
+     - ผลลัพธ์ออกแบบให้เป็น metadata และตัวเลขสรุปของ schema NPPOOL เท่านั้น
        ไม่แสดงชื่อคน ชื่อบริษัท เบอร์โทร ที่อยู่ เลขบัตร ชื่อสถานที่ หรือ Username
+     - ฐานข้อมูล TCRMIS ใช้ร่วมกับระบบอื่น — สคริปต์ไม่แสดงชื่อหรือขนาดของ schema อื่น
      - ส่วนที่ 5 แสดงนิยาม view / trigger / procedure ทั้งข้อความ — ตรวจด้วยตาก่อนส่งต่อ
        ว่าไม่มีรหัสผ่านหรือข้อมูลลูกค้าเขียนติดไว้ในโค้ด SQL
+     - แต่ละส่วนเป็น batch แยกกัน (คั่นด้วย GO) — ถ้าส่วนใด error ส่วนอื่นยังทำงานต่อ
+       และตารางที่อาจไม่มีในบางเวอร์ชัน (Location_From_To) ถูกตรวจก่อนอ่าน
    วิธีรัน (เลือกอย่างใดอย่างหนึ่ง):
      1) SSMS: เปิดไฟล์นี้ → เลือกฐานข้อมูล TCRMIS → Results to Text (Ctrl+T) → Execute (F5)
-     2) sqlcmd (Windows authentication, อ่าน/เขียนไฟล์เป็น UTF-8):
-        sqlcmd -S <server\instance> -d TCRMIS -E -f 65001 -W -s "|" -i 01-inventory-readonly.sql -o nppool-inventory-result.txt
+     2) sqlcmd (Windows authentication, ไฟล์เป็น UTF-8, ไม่ตัดข้อความยาวถึง 8000 ตัวอักษร):
+        sqlcmd -S <server\instance> -d TCRMIS -E -f 65001 -y 8000 -s "|" -i 01-inventory-readonly.sql -o nppool-inventory-result.txt
+        (ใช้ -W ร่วมกับ -y ไม่ได้ และ -y 0 จะไม่แสดงหัวคอลัมน์)
    หลังรัน : เปิดไฟล์ผลลัพธ์ตรวจอีกครั้ง แล้วส่งให้เซสชัน REA — ห้าม commit ผลดิบขึ้น repo ก่อนตรวจ
    ============================================================================ */
 SET NOCOUNT ON;
 -- อ่านโดยไม่ถือ shared lock เพื่อไม่รบกวนผู้ใช้งาน (ตัวเลขอาจคลาดเล็กน้อยถ้ามีการบันทึกระหว่างรัน)
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
--- รูปแบบค้นหาอักษรไทย U+0E01 (ก) ถึง U+0E5B (๛) — สร้างจากรหัสอักขระ เพื่อไม่ขึ้นกับการเข้ารหัสของไฟล์นี้
-DECLARE @thai nvarchar(10) = N'%[' + NCHAR(3585) + N'-' + NCHAR(3675) + N']%';
-
-PRINT '=== 1. Server and database ===';
+PRINT '=== 1. Server, database and size of schema NPPOOL ===';
 SELECT CAST(SERVERPROPERTY('ProductVersion') AS varchar(50)) AS product_version,
        CAST(SERVERPROPERTY('ProductLevel')   AS varchar(50)) AS product_level,
        CAST(SERVERPROPERTY('Edition')        AS varchar(100)) AS edition,
@@ -33,17 +33,19 @@ SELECT CAST(SERVERPROPERTY('ProductVersion') AS varchar(50)) AS product_version,
        CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS varchar(100)) AS database_collation,
        (SELECT compatibility_level FROM sys.databases WHERE name = DB_NAME()) AS compatibility_level;
 
-SELECT type_desc AS file_type, CAST(SUM(size) * 8.0 / 1024 AS decimal(12, 1)) AS size_mb
-FROM sys.database_files
-GROUP BY type_desc;
+SELECT CAST(SUM(a.used_pages) * 8.0 / 1024 AS decimal(12, 2)) AS nppool_used_mb
+FROM sys.tables t
+JOIN sys.schemas s ON s.schema_id = t.schema_id
+JOIN sys.partitions p ON p.object_id = t.object_id
+JOIN sys.allocation_units a ON a.container_id = p.partition_id
+WHERE s.name = 'NPPOOL';
+GO
 
-PRINT '=== 2. Objects per schema, and every object in schema NPPOOL ===';
-SELECT s.name AS schema_name, o.type_desc, COUNT(*) AS object_count
+PRINT '=== 2. Objects in schema NPPOOL (other schemas: count only) ===';
+SELECT COUNT(DISTINCT s.name) AS other_schema_count
 FROM sys.objects o
 JOIN sys.schemas s ON s.schema_id = o.schema_id
-WHERE o.is_ms_shipped = 0 AND o.parent_object_id = 0
-GROUP BY s.name, o.type_desc
-ORDER BY s.name, o.type_desc;
+WHERE o.is_ms_shipped = 0 AND s.name <> 'NPPOOL';
 
 SELECT o.type_desc, o.name,
        CONVERT(varchar(10), o.create_date, 23) AS created,
@@ -52,6 +54,7 @@ FROM sys.objects o
 JOIN sys.schemas s ON s.schema_id = o.schema_id
 WHERE s.name = 'NPPOOL' AND o.is_ms_shipped = 0
 ORDER BY o.type_desc, o.name;
+GO
 
 PRINT '=== 3. Row count per table (schema NPPOOL) ===';
 SELECT t.name AS table_name, SUM(p.rows) AS row_count
@@ -61,6 +64,7 @@ JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1)
 WHERE s.name = 'NPPOOL'
 GROUP BY t.name
 ORDER BY t.name;
+GO
 
 PRINT '=== 4. Keys, constraints and indexes ===';
 -- 4.1 Primary key / Unique constraint
@@ -126,6 +130,7 @@ JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.inde
 JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
 WHERE s.name = 'NPPOOL' AND i.type > 0
 ORDER BY t.name, i.name, ic.key_ordinal;
+GO
 
 PRINT '=== 5. Definitions of views / triggers / procedures / functions (review before sharing) ===';
 SELECT o.type_desc, o.name, m.definition
@@ -134,6 +139,7 @@ JOIN sys.objects o ON o.object_id = m.object_id
 JOIN sys.schemas s ON s.schema_id = o.schema_id
 WHERE s.name = 'NPPOOL'
 ORDER BY o.type_desc, o.name;
+GO
 
 PRINT '=== 6. SQL Agent jobs that run against this database (may be skipped) ===';
 BEGIN TRY
@@ -146,9 +152,9 @@ END TRY
 BEGIN CATCH
     SELECT 'skipped: ' + ERROR_MESSAGE() AS sql_agent_jobs;
 END CATCH;
+GO
 
-PRINT '=== 7. Data profile (aggregates only) ===';
--- 7.1 ใบงาน: ช่วงเวลา, ปีที่เก็บ (ตรวจ พ.ศ./ค.ศ.), ค่าว่าง, การใช้งานแต่ละช่อง
+PRINT '=== 7.1 Work orders: dates, empty fields, field usage ===';
 SELECT COUNT(*) AS work_orders,
        MIN(w.CreatedDate) AS first_created, MAX(w.CreatedDate) AS last_created,
        MIN(w.JobReceiveDate) AS min_receive_date, MAX(w.JobReceiveDate) AS max_receive_date,
@@ -170,22 +176,22 @@ SELECT COUNT(*) AS work_orders,
        SUM(CASE WHEN ISNULL(w.PickerUser, '') <> '' THEN 1 ELSE 0 END) AS uses_pickup_contact,
        SUM(CASE WHEN ISNULL(w.DropoffUser, '') <> '' THEN 1 ELSE 0 END) AS uses_dropoff_contact,
        SUM(CASE WHEN COALESCE(w.PickupProvinceId, w.DropoffProvinceId, w.PickupDistrictId, w.DropoffDistrictId) IS NOT NULL THEN 1 ELSE 0 END) AS uses_address_ids,
-       SUM(CASE WHEN COALESCE(w.VehicleId, w.VehicleTypeId, w.DriverId) IS NOT NULL THEN 1 ELSE 0 END) AS uses_header_vehicle_columns,
        SUM(CASE WHEN w.ModifiedDate IS NOT NULL AND w.ModifiedDate <> w.CreatedDate THEN 1 ELSE 0 END) AS modified_after_create
 FROM NPPOOL.WorkOrders w
 LEFT JOIN NPPOOL.Customers c ON c.Id = w.CustomerId;
 
--- 7.2 ใบงานแยกตามสถานะ
+-- ใบงานแยกตามสถานะ
 SELECT w.WorkStatusId, s.[Description] AS status_name, COUNT(*) AS work_orders
 FROM NPPOOL.WorkOrders w
 LEFT JOIN NPPOOL.WorkFlow_Status s ON s.Code = w.WorkStatusId
 GROUP BY w.WorkStatusId, s.[Description]
 ORDER BY w.WorkStatusId;
 
--- 7.3 ค่าสถานะทั้งหมด (ข้อมูลอ้างอิง ไม่ใช่ข้อมูลลูกค้า)
+-- ค่าสถานะทั้งหมด (ข้อมูลอ้างอิง ไม่ใช่ข้อมูลลูกค้า)
 SELECT Code, [Description] FROM NPPOOL.WorkFlow_Status ORDER BY Code;
+GO
 
--- 7.4 เลขที่ใบงาน: จำนวนต่อเดือน (prefix NP+ปี+เดือน), เลขซ้ำ, รูปแบบผิด
+PRINT '=== 7.2 Work order numbers: per month (prefix NP+year+month), duplicates, format ===';
 SELECT LEFT(WorkOrderNo, 8) AS prefix_np_year_month, COUNT(*) AS work_orders,
        MIN(WorkOrderNo) AS first_no, MAX(WorkOrderNo) AS last_no
 FROM NPPOOL.WorkOrders
@@ -195,8 +201,9 @@ ORDER BY prefix_np_year_month;
 SELECT COUNT(*) - COUNT(DISTINCT WorkOrderNo) AS duplicate_numbers,
        SUM(CASE WHEN WorkOrderNo NOT LIKE 'NP[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' THEN 1 ELSE 0 END) AS non_standard_format
 FROM NPPOOL.WorkOrders;
+GO
 
--- 7.5 จำนวนรถต่อใบงาน และคุณภาพของรายการรถ
+PRINT '=== 7.3 Vehicle rows per work order, and quality of vehicle rows ===';
 SELECT x.vehicle_rows, COUNT(*) AS work_orders
 FROM (SELECT w.Id, COUNT(d.Id) AS vehicle_rows
       FROM NPPOOL.WorkOrders w
@@ -217,8 +224,9 @@ SELECT COUNT(*) AS detail_rows,
        SUM(CASE WHEN ISNULL(d.Dimensions, '') <> '' THEN 1 ELSE 0 END) AS with_dimensions
 FROM NPPOOL.WorkOrderDetails d
 LEFT JOIN NPPOOL.WorkOrders w ON w.Id = d.WorkOrderId;
+GO
 
--- 7.6 ผู้ใช้: จำนวนต่อบทบาท และรูปแบบ password hash (ไม่แสดง Username หรือ hash)
+PRINT '=== 7.4 Users per role and password hash format (no usernames, no hashes) ===';
 SELECT RoleType, COUNT(*) AS users,
        SUM(CASE WHEN PasswordHash LIKE 'AQAAAA%' THEN 1 ELSE 0 END) AS identity_v3_hash,
        SUM(CASE WHEN ISNULL(PasswordHash, '') = '' THEN 1 ELSE 0 END) AS no_password
@@ -228,11 +236,13 @@ ORDER BY RoleType;
 
 SELECT COUNT(*) - COUNT(DISTINCT UPPER(Username)) AS duplicate_usernames_ignoring_case
 FROM NPPOOL.Users;
+GO
 
--- 7.7 ข้อมูลพื้นฐาน: จำนวน, ช่องที่มีค่า, การถูกใช้ในใบงาน
+PRINT '=== 7.5 Master data: counts, filled fields, usage in work orders ===';
 SELECT 'Customers' AS table_name, COUNT(*) AS row_count,
        SUM(CASE WHEN ISNULL(c.IDCard, '') = '' THEN 1 ELSE 0 END) AS missing_tax_id,
-       SUM(CASE WHEN u.CustomerId IS NULL THEN 1 ELSE 0 END) AS never_used_in_work_orders
+       SUM(CASE WHEN u.CustomerId IS NULL THEN 1 ELSE 0 END) AS never_used_in_work_orders,
+       MIN(c.CreatedDT) AS first_created, MAX(c.CreatedDT) AS last_created
 FROM NPPOOL.Customers c
 LEFT JOIN (SELECT DISTINCT CustomerId FROM NPPOOL.WorkOrders) u ON u.CustomerId = c.Id;
 
@@ -241,7 +251,8 @@ SELECT 'Employee' AS table_name, COUNT(*) AS row_count,
        SUM(CASE WHEN ISNULL(e.IDCard, '') <> '' THEN 1 ELSE 0 END) AS with_id_card,
        SUM(CASE WHEN ISNULL(e.Address, '') <> '' THEN 1 ELSE 0 END) AS with_address,
        SUM(CASE WHEN ISNULL(e.Tel, '') <> '' THEN 1 ELSE 0 END) AS with_tel,
-       SUM(CASE WHEN a.DriverId IS NULL THEN 1 ELSE 0 END) AS never_assigned_to_work_order
+       SUM(CASE WHEN a.DriverId IS NULL THEN 1 ELSE 0 END) AS never_assigned_to_work_order,
+       MIN(e.CreatedDT) AS first_created, MAX(e.CreatedDT) AS last_created
 FROM NPPOOL.Employee e
 LEFT JOIN (SELECT DISTINCT DriverId FROM NPPOOL.WorkOrderDetails WHERE DriverId IS NOT NULL) a ON a.DriverId = e.Id;
 
@@ -249,13 +260,9 @@ SELECT 'Vehicles' AS table_name, COUNT(*) AS row_count,
        SUM(CASE WHEN VehicleBrandId IS NOT NULL THEN 1 ELSE 0 END) AS with_brand,
        SUM(CASE WHEN VehicleTypeId IS NULL THEN 1 ELSE 0 END) AS without_type_id,
        SUM(CASE WHEN ISNULL([Name], '') <> '' THEN 1 ELSE 0 END) AS with_name_column,
-       COUNT(*) - COUNT(DISTINCT LicensePlate) AS duplicate_or_empty_plates
+       COUNT(*) - COUNT(DISTINCT LicensePlate) AS duplicate_or_empty_plates,
+       MIN(CreatedDT) AS first_created, MAX(CreatedDT) AS last_created
 FROM NPPOOL.Vehicles;
-
-SELECT 'Location_From_To' AS table_name, COUNT(*) AS row_count,
-       COUNT(DISTINCT Location_From) AS distinct_from, COUNT(DISTINCT Location_To) AS distinct_to,
-       SUM(CASE WHEN Price IS NULL THEN 1 ELSE 0 END) AS without_price
-FROM NPPOOL.Location_From_To;
 
 SELECT 'Lookup_PickDropLocation' AS table_name, COUNT(*) AS row_count
 FROM NPPOOL.Lookup_PickDropLocation;
@@ -265,40 +272,73 @@ SELECT 'Master_DOPA' AS table_name, COUNT(*) AS row_count,
        COUNT(DISTINCT TambonID) AS tambons, COUNT(DISTINCT PostCodeMain) AS postcodes
 FROM NPPOOL.Master_DOPA;
 
--- 7.8 ค่าอ้างอิงของรถ (ชื่อประเภท/ยี่ห้อ ไม่ใช่ข้อมูลลูกค้า)
+-- ตารางสถานที่รับ-ส่ง มีเฉพาะใน schema เวอร์ชันใหม่ — ตรวจก่อนอ่าน
+IF OBJECT_ID(N'NPPOOL.Location_From_To', N'U') IS NOT NULL
+    EXEC (N'SELECT ''Location_From_To'' AS table_name, COUNT(*) AS row_count,
+                   COUNT(DISTINCT Location_From) AS distinct_from, COUNT(DISTINCT Location_To) AS distinct_to,
+                   SUM(CASE WHEN Price IS NULL THEN 1 ELSE 0 END) AS without_price
+            FROM NPPOOL.Location_From_To;');
+ELSE
+    SELECT 'Location_From_To' AS table_name, 'table not found in this database' AS note;
+GO
+
+PRINT '=== 7.6 Reference data: vehicle types and brands (not customer data) ===';
 SELECT Id, VehicleType, VehicleName FROM NPPOOL.VehicleTypes ORDER BY Id;
 SELECT Id, VehicleBrand FROM NPPOOL.VehicleBrand ORDER BY Id;
+GO
 
 PRINT '=== 8. Thai text encoding check (varchar + Thai_CI_AS) ===';
+-- รูปแบบค้นหาอักษรไทย U+0E01 (ก) ถึง U+0E5B (๛) — สร้างจากรหัสอักขระ เพื่อไม่ขึ้นกับการเข้ารหัสของไฟล์นี้
+DECLARE @thai nvarchar(10) = N'%[' + NCHAR(3585) + N'-' + NCHAR(3675) + N']%';
 -- นับแถวที่มีอักษรไทย และแถวที่มีเครื่องหมาย ? (อาจเป็นอักขระที่แปลงเป็น code page 874 ไม่ได้แล้วหายไป)
 SELECT 'Customers.Name' AS column_name,
        SUM(CASE WHEN CAST([Name] AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END) AS rows_with_thai,
-       SUM(CASE WHEN [Name] LIKE '%?%' THEN 1 ELSE 0 END) AS rows_with_question_mark
+       SUM(CASE WHEN [Name] LIKE '%?%' THEN 1 ELSE 0 END) AS rows_with_question_mark,
+       COUNT(*) AS total_rows
 FROM NPPOOL.Customers
 UNION ALL
 SELECT 'Customers.Address',
        SUM(CASE WHEN CAST([Address] AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
-       SUM(CASE WHEN [Address] LIKE '%?%' THEN 1 ELSE 0 END)
+       SUM(CASE WHEN [Address] LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
 FROM NPPOOL.Customers
 UNION ALL
 SELECT 'Employee.FirstName',
        SUM(CASE WHEN CAST(FirstName AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
-       SUM(CASE WHEN FirstName LIKE '%?%' THEN 1 ELSE 0 END)
+       SUM(CASE WHEN FirstName LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
 FROM NPPOOL.Employee
 UNION ALL
 SELECT 'WorkOrders.PickupLocation',
        SUM(CASE WHEN CAST(PickupLocation AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
-       SUM(CASE WHEN PickupLocation LIKE '%?%' THEN 1 ELSE 0 END)
+       SUM(CASE WHEN PickupLocation LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
 FROM NPPOOL.WorkOrders
 UNION ALL
 SELECT 'WorkOrders.JobRemark',
        SUM(CASE WHEN CAST(JobRemark AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
-       SUM(CASE WHEN JobRemark LIKE '%?%' THEN 1 ELSE 0 END)
+       SUM(CASE WHEN JobRemark LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
 FROM NPPOOL.WorkOrders
 UNION ALL
-SELECT 'Location_From_To.Location_From',
-       SUM(CASE WHEN CAST(Location_From AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
-       SUM(CASE WHEN Location_From LIKE '%?%' THEN 1 ELSE 0 END)
-FROM NPPOOL.Location_From_To;
+SELECT 'VehicleTypes.VehicleName',
+       SUM(CASE WHEN CAST(VehicleName AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
+       SUM(CASE WHEN VehicleName LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
+FROM NPPOOL.VehicleTypes
+UNION ALL
+SELECT 'VehicleBrand.VehicleBrand',
+       SUM(CASE WHEN CAST(VehicleBrand AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
+       SUM(CASE WHEN VehicleBrand LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
+FROM NPPOOL.VehicleBrand
+UNION ALL
+SELECT 'Master_DOPA.TambonThai',
+       SUM(CASE WHEN CAST(TambonThai AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @thai THEN 1 ELSE 0 END),
+       SUM(CASE WHEN TambonThai LIKE '%?%' THEN 1 ELSE 0 END), COUNT(*)
+FROM NPPOOL.Master_DOPA;
+
+IF OBJECT_ID(N'NPPOOL.Location_From_To', N'U') IS NOT NULL
+    EXEC sp_executesql N'SELECT ''Location_From_To.Location_From'' AS column_name,
+                                SUM(CASE WHEN CAST(Location_From AS nvarchar(4000)) COLLATE Latin1_General_BIN2 LIKE @p THEN 1 ELSE 0 END) AS rows_with_thai,
+                                SUM(CASE WHEN Location_From LIKE ''%?%'' THEN 1 ELSE 0 END) AS rows_with_question_mark,
+                                COUNT(*) AS total_rows
+                         FROM NPPOOL.Location_From_To;', N'@p nvarchar(10)', @p = @thai;
+GO
 
 PRINT '=== End of script ===';
+GO
