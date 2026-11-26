@@ -18,6 +18,8 @@
 
 ## 2. ER diagram (ระบบใหม่)
 
+แสดงเฉพาะคอลัมน์หลัก — FK, check constraint และคอลัมน์ทั้งหมดอยู่ในหัวข้อ 3
+
 ```mermaid
 erDiagram
     customers ||--o{ work_orders : "customer_id"
@@ -29,15 +31,15 @@ erDiagram
     vehicle_types ||--o{ vehicles : "vehicle_type_id"
     routes ||..o{ work_orders : "คัดลอกชื่อสถานที่"
     work_order_counters ||..o{ work_orders : "ออกเลขที่ต่อเดือน"
-    users ||--o{ work_orders : "created_by / updated_by / cancelled_by"
+    users ||--o{ work_orders : "ผู้สร้าง ผู้แก้ไข ผู้ยกเลิก"
     users ||--o{ sessions : "user_id"
     users ||--o{ accounts : "user_id"
 
     work_orders {
         int id PK
-        text work_order_no UK "NP + ปี พ.ศ. + เดือน + running"
-        int customer_id FK
-        smallint status_code FK
+        text work_order_no UK
+        int customer_id
+        smallint status_code
         text pickup_location
         text dropoff_location
         timestamptz receive_at
@@ -47,12 +49,12 @@ erDiagram
     }
     work_order_vehicles {
         int id PK
-        int work_order_id FK
+        int work_order_id
         smallint line_no
-        int vehicle_type_id FK
-        int driver_id FK
-        int vehicle_id FK
-        text driver_phone "สำเนา"
+        int vehicle_type_id
+        int driver_id
+        int vehicle_id
+        text driver_phone "สำเนาเบอร์คนขับ"
         numeric quantity
         numeric weight
     }
@@ -72,7 +74,7 @@ erDiagram
     vehicles {
         int id PK
         text plate_no UK
-        int vehicle_type_id FK
+        int vehicle_type_id
         bool is_active
     }
     vehicle_types {
@@ -92,14 +94,14 @@ erDiagram
         text name
     }
     work_order_counters {
-        text period PK "ปี พ.ศ. + เดือน เช่น 256911"
+        text period PK
         int last_no
     }
     users {
         text id PK
         text username UK
         text name
-        text role "admin / maker / accounting"
+        text role
         bool banned
     }
 ```
