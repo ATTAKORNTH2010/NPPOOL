@@ -65,7 +65,10 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 
 - [ ] Schema Postgres ใหม่ + ตาราง mapping เดิม → ใหม่ (ใช้หัวข้อ 5.3)
 - [ ] Route map / หน้าจอใหม่
-- [ ] ADR สำหรับการตัดสินใจสำคัญ (แม่แบบ 4.6)
+- [ ] ADR สำหรับการตัดสินใจสำคัญ (แม่แบบ 4.6) — ทุกฉบับมีทางเลือกอย่างน้อย 2 ทาง และระบุสิ่งที่ต้องทดสอบจริงในขั้นที่ 4
+- [ ] ตรวจเวอร์ชัน (npm) และเอกสารปัจจุบันของทุกไลบรารี/บริการที่เลือกก่อนเขียน ADR
+- [ ] แบบหน้าจอตรงกับขอบเขต MVP — ฟีเจอร์ระดับ S/C ที่ปรากฏในแบบต้องติดป้าย
+- [ ] ตรวจลิงก์ภายในเอกสาร และชื่อ (ฟังก์ชัน, ตาราง, คอลัมน์) ให้ตรงกันทุกเอกสาร
 
 ### ขั้นที่ 4–8
 
@@ -134,17 +137,22 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 
 ## 5. Tech stack และข้อตกลง
 
-### 5.1 เวอร์ชัน (ตรวจจาก npm เมื่อ 2026-11-25 — ตรวจซ้ำก่อน scaffold)
+### 5.1 เวอร์ชัน (ตรวจจาก npm เมื่อ 2026-11-26 — ตรวจซ้ำก่อน scaffold)
 
 | แพ็กเกจ | เวอร์ชัน |
 |---|---|
 | next / create-next-app | 16.4.6 (Node ≥ 20.9) |
 | react | 19.3.1 |
 | drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 |
-| @neondatabase/serverless | 1.2.1 |
-| tailwindcss | 4.3.5 |
+| pg / @vercel/functions | 8.23.1 / 3.11.4 (ADR-0003) |
+| @neondatabase/serverless | 1.2.1 (ไม่ได้เลือกเป็น driver หลัก) |
+| better-auth | 1.7.28 (ADR-0004) · next-auth ล่าสุดยังเป็น 4.24.15 |
+| tailwindcss / shadcn (CLI) | 4.3.5 / 4.23.1 |
+| react-hook-form / @hookform/resolvers | 7.92.0 / 7.0.9 |
+| react-day-picker / date-fns | 10.0.2 / 4.4.0 |
 | zod | 4.6.7 |
-| vitest / @playwright/test | 5.1.1 / 1.65.1 |
+| vitest / @playwright/test | 5.1.2 / 1.65.1 |
+| puppeteer-core / @sparticuz/chromium | 25.19.0 / 158.0.0 (เฉพาะถ้าเลือก ADR-0005 ทางเลือก B) |
 | vercel (CLI) | 66.6.0 |
 | ~~@vercel/postgres~~ | 0.10.0 — **deprecated ห้ามใช้** |
 
@@ -193,10 +201,20 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 
 - **Vercel Postgres เลิกให้บริการแล้ว** — “ใช้ Vercel Postgres” ในปัจจุบัน = ติดตั้ง Neon จาก Vercel Marketplace; ใช้ `@neondatabase/serverless` ไม่ใช้ `@vercel/postgres`
 - Connection string มีทั้งแบบ pooled (ใช้กับแอป) และ direct/unpooled (ใช้รัน migration) — ใช้ให้ถูกตัว ชื่อตัวแปรจริงตรวจตอนเชื่อมต่อ
-- Driver แบบ HTTP ของ Neon เหมาะกับ query สั้นๆ; งานที่ต้องใช้ transaction หลายคำสั่ง (เช่น สร้างใบงาน + รายการ + เลขที่เอกสาร) ให้ใช้แบบ WebSocket/Pool — ตรวจกับเอกสาร Drizzle ตอนขั้นที่ 4
+- Driver แบบ HTTP ของ Neon (`neon-http`) ไม่รองรับ transaction แบบ interactive · บน Vercel Fluid compute ใช้ `pg` Pool ระดับ module + `attachDatabasePool()` ของ `@vercel/functions` ตามคำแนะนำของ Vercel (ADR-0003) — ตรวจวิธีใช้กับเอกสารฉบับปัจจุบันตอนขั้นที่ 4
+- Postgres `lpad()` **ตัด**ข้อความที่ยาวเกินความยาวที่กำหนด (`lpad('10000', 4, '0')` = `'1000'`) — จัดรูปแบบเลขเอกสารใน TypeScript (`padStart`)
+- `user` เป็นคำสงวนของ Postgres — ตั้งชื่อตารางผู้ใช้เป็น `users`
 - Serverless ไม่มีดิสก์ถาวร — ไฟล์อัปโหลด/รูปใช้ Vercel Blob; งานตั้งเวลาใช้ Vercel Cron; งานที่ใช้เวลานานต้องแบ่งเป็นชิ้น (ตรวจ limit ของแพ็กเกจ Vercel ที่ใช้)
 - ตั้ง region ของฐานข้อมูลและ Functions ให้อยู่ใกล้กัน (เช่น Singapore) เพื่อลด latency
 - Server บน Vercel ทำงานด้วยเวลา UTC
+
+### Better Auth (ตรวจจากเอกสาร 2026-11-26)
+
+- core บังคับให้ผู้ใช้มี `email` ไม่ซ้ำ — ระบบที่ login ด้วย username อย่างเดียวต้องสร้างอีเมลสมมติ (ใช้โดเมน `.invalid` ที่ส่งจริงไม่ได้)
+- username plugin: `signIn.username` · ค่าเริ่มต้นใช้ได้ a–z 0–9 `_` `.` ยาว 3–30 ตัว ไม่สนตัวพิมพ์
+- admin plugin: `createUser` บังคับ email, password, name · มี `setRole`, `setUserPassword`, `banUser` (ระงับแล้ว session ถูกเพิกถอน), `listUsers` · custom roles ผ่าน access control
+- rate limit ค่าเริ่มต้นเก็บในหน่วยความจำ ซึ่งไม่เหมาะกับ serverless → `storage: "database"` · กฎในตัวครอบ `/sign-in/email` — เพิ่มกฎให้ `/sign-in/username` เอง
+- Auth.js (NextAuth) อยู่ในความดูแลของทีม Better Auth ตั้งแต่ ก.ย. 2025 และแนะนำให้โปรเจกต์ใหม่ใช้ Better Auth
 
 ### Next.js 16 (ยืนยันกับเอกสารทางการอีกครั้งตอน scaffold)
 
@@ -267,3 +285,6 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 | 2026-11-26 | schema ใน export ใหม่กว่าฐานข้อมูลที่ผู้ใช้มีอยู่ — เทียบคอลัมน์ทีละตารางก่อนบอกว่า “ฐานข้อมูลจริงเป็นแบบนี้” และบอกผู้ใช้ว่าเวอร์ชันไหนเป็นต้นแบบ |
 | 2026-11-26 | ค่าอ้างอิงในฐานข้อมูลเดิมอาจเป็นข้อมูลตัวอย่าง (ประเภทรถเป็นรถยนต์นั่งในระบบขนส่งสินค้า) — ตรวจความสมเหตุสมผลกับธุรกิจก่อนนำไป seed |
 | 2026-11-26 | ระบบเดิมที่ไม่มีข้อมูลจริง: กฎธุรกิจถอดได้จากโค้ด + requirement เท่านั้น — ติดป้ายว่ายังไม่ยืนยันด้วยข้อมูล และให้ทุกกฎมีตัวอย่าง input → output เพื่อใช้เป็น test แทนการเทียบกับระบบเดิม |
+| 2026-11-26 | ตรวจสถานะปัจจุบันของไลบรารีก่อนตัดสินใจ — Auth.js ย้ายมาอยู่ในความดูแลของทีม Better Auth และ Vercel แนะนำ `attachDatabasePool` สำหรับ Fluid compute (สิ่งที่ “จำได้” อาจล้าสมัย) |
+| 2026-11-26 | ค่าเริ่มต้นของคำถามที่ผู้ใช้ยืนยันอาจเปลี่ยนขอบเขต (Q19 → MD-08 เข้า MVP) — ไล่ผลกระทบกับ Parity Matrix ทันทีที่ได้รับการยืนยัน |
+| 2026-11-26 | ตอนออกแบบหน้าจอ ฟีเจอร์ระดับ S (เบอร์ พขร. อัตโนมัติ) เผลอเข้าไปอยู่ในแบบ MVP — เทียบแบบกับรายการ M ทุกครั้ง และติดป้ายสิ่งที่เกินขอบเขต |
