@@ -1,7 +1,7 @@
 # NPPool — Roadmap และบันทึกการทำงาน
 
 แผนเต็ม → [plan.md](plan.md) · วิธีการและความรู้ → [skill.md](skill.md)
-อัปเดตล่าสุด: 2026-11-26
+อัปเดตล่าสุด: 2026-11-27
 
 ## สถานะภาพรวม
 
@@ -10,8 +10,8 @@
 | 0 | เตรียมการและเข้าถึงงานเดิม | ✅ เสร็จ — เลือกวิธี C (ทำงานในเซสชันบนเครื่องผู้ใช้) | ✅ ให้ดำเนินการต่อ (2026-11-25) |
 | 1 | สำรวจและทำบัญชีรายการ (Discovery & Inventory) | ✅ เสร็จ — [docs/rea/01-inventory.md](docs/rea/01-inventory.md) + คำถามค้าง 28 ข้อ (ตอบแล้ว 3) + ผลฐานข้อมูลจริง | ✅ อนุมัติ (2026-11-26) |
 | 2 | ถอดแบบระบบเดิม (Analysis) | ✅ เสร็จ — [02-domain-model](docs/rea/02-domain-model.md) · [03-feature-parity](docs/rea/03-feature-parity.md) · [04-business-rules](docs/rea/04-business-rules.md) | ✅ ยืนยันการถอดแบบ + MVP 25 รายการ (2026-11-26) |
-| 3 | ออกแบบระบบใหม่ (Target Design) | ⏸ เสร็จ — [docs/design](docs/design/01-architecture.md) (3 ไฟล์) + [ADR 11 ฉบับ](docs/adr/README.md) | ✅ อนุมัติให้เริ่ม (2026-11-26) · ⏸ รออนุมัติแบบ + เลือกวิธีพิมพ์ (ADR-0005) |
-| 4 | วางรากฐานโปรเจกต์ (Foundation) | ⬜ | — |
+| 3 | ออกแบบระบบใหม่ (Target Design) | ✅ เสร็จ — [docs/design](docs/design/01-architecture.md) (3 ไฟล์) + [ADR 11 ฉบับ](docs/adr/README.md) | ✅ อนุมัติแบบ + เลือกวิธีพิมพ์ A (2026-11-27) |
+| 4 | วางรากฐานโปรเจกต์ (Foundation) | 🟨 โค้ด + test + CI + runbook พร้อม — รอผู้ใช้ตั้งค่า Vercel + Neon ตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) เพื่อ Preview แรก | ✅ อนุมัติให้เริ่ม (2026-11-27) |
 | 5 | สร้างฟีเจอร์ตาม Parity Matrix (Rebuild) | ⬜ | — |
 | 6 | ย้ายข้อมูล (Data Migration) | ⬜ | — |
 | 7 | ทดสอบเทียบระบบเดิมและ UAT | ⬜ | — |
@@ -29,7 +29,8 @@
 | B4 | ไม่รู้ว่าระบบที่ใช้งานจริงเป็นเวอร์ชันไหน อยู่เครื่องไหน | ผู้ใช้ตอบ Q1–Q2 | ✅ ปิด (2026-11-26) — ไม่ได้เปิดใช้งานแล้ว ใช้ซอร์สล่าสุดเป็นต้นแบบ |
 | B5 | schema ฉบับใหม่ (มี `Location_From_To`) ไม่มีในฐานข้อมูลบนเครื่องนี้ — มีแค่ใน export | ใช้ export + โค้ดเป็นต้นแบบ schema | 🟨 ไม่บล็อก — ระวังตอนทดสอบเทียบกับระบบเดิม (03 หัวข้อ 6) |
 | B6 | ยังไม่มีรายการประเภทรถจริง (ค่าในฐานข้อมูลเดิมเป็นรถยนต์นั่ง — Q22) | ผู้ใช้ส่งรายการประเภทรถที่ใช้จริง | 🟨 ไม่บล็อกขั้นที่ 3–4 · ต้องได้ก่อน seed production |
-| B7 | ขั้นที่ 4 ต้องมีบัญชี Vercel ที่ผูกกับ repo และติดตั้ง Neon จาก Marketplace | ผู้ใช้ทำในบัญชีของตัวเอง (จะเตรียมขั้นตอนทีละคลิกให้) | ⬜ รอเริ่มขั้นที่ 4 |
+| B7 | ขั้นที่ 4 ต้องมีบัญชี Vercel ที่ผูกกับ repo และติดตั้ง Neon จาก Marketplace | ผู้ใช้ทำตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) ในบัญชีของตัวเอง แล้วแจ้ง Claude | 🟨 ขั้นตอนพร้อมแล้ว — รอผู้ใช้ทำ |
+| B8 | โลโก้ NP Pool จริง — กติกาห้ามคัดลอกไฟล์จากงานเดิมเข้า repo | ผู้ใช้ส่งไฟล์โลโก้ หรืออนุญาตให้คัดลอกไฟล์โลโก้จาก `C:\Projects\NPPool` | 🟨 ไม่บล็อก — ระหว่างนี้ใช้ตราตัวอักษร + ไอคอนรถบรรทุก |
 
 ## Decision log
 
@@ -44,26 +45,62 @@
 | D7 | ขอบเขต MVP = ฟีเจอร์ระดับ M (03 หัวข้อ 5) — 25 รายการ หลังค่าเริ่มต้น Q19 ย้าย MD-08 เข้ามา | ✅ ผู้ใช้ยืนยัน | 2026-11-26 |
 | D8 | ไม่ย้ายข้อมูลธุรกรรม (ฐานข้อมูลไม่มีใบงาน) — ขั้นที่ 6 เหลือ seed ข้อมูลอ้างอิง | ✅ ยืนยันผ่าน GEN-06 Drop (ADR-0011) | 2026-11-26 |
 | D9 | คำถามที่ยังไม่ตอบใช้ค่าเริ่มต้นใน 03 หัวข้อ 7 (Q5, Q6, Q9–Q11, Q14, Q15, Q17, Q19, Q26) | ✅ ผู้ใช้ยืนยัน | 2026-11-26 |
-| D10 | DB driver = `pg` Pool + `attachDatabasePool` บน Vercel Fluid | ⏸ เสนอ ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | 2026-11-26 |
-| D11 | Auth = Better Auth (username + admin plugin, session และ rate limit ในฐานข้อมูล) | ⏸ เสนอ ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | 2026-11-26 |
-| D12 | ใบสั่งปฏิบัติงาน = หน้า HTML สำหรับพิมพ์ (A) หรือ PDF จาก server (B) | ⏸ ขอให้เลือก — เสนอ A ([ADR-0005](docs/adr/0005-job-order-printing.md)) | 2026-11-26 |
-| D13 | UI = Tailwind + shadcn/ui + Noto Sans Thai / Sarabun + แบรนด์ NP Pool | ⏸ เสนอ ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | 2026-11-26 |
-| D14 | เลขที่ใบงานด้วยตารางตัวนับต่อเดือน + unique + เวลาไทย | ⏸ เสนอ ([ADR-0007](docs/adr/0007-work-order-numbering.md)) | 2026-11-26 |
-| D15 | เวลาเก็บ `timestamptz` แสดง Asia/Bangkok ปี พ.ศ. | ⏸ เสนอ ([ADR-0008](docs/adr/0008-dates-timezone-buddhist-year.md)) | 2026-11-26 |
-| D16 | สิทธิ์ deny by default ตรวจทุก page และ Server Action | ⏸ เสนอ ([ADR-0009](docs/adr/0009-authorization-deny-by-default.md)) | 2026-11-26 |
-| D17 | ไม่ลบถาวร: ยกเลิกใบงาน / ปิดใช้งานข้อมูลพื้นฐาน + FK | ⏸ เสนอ ([ADR-0010](docs/adr/0010-no-hard-delete.md)) | 2026-11-26 |
-| D18 | Migration รันใน build ของ Vercel + seed แบบรันซ้ำได้ | ⏸ เสนอ ([ADR-0011](docs/adr/0011-migrations-and-seed-data.md)) | 2026-11-26 |
+| D10 | DB driver = `pg` Pool + `attachDatabasePool` บน Vercel Fluid | ✅ อนุมัติ ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | 2026-11-27 |
+| D11 | Auth = Better Auth (username + admin plugin, session และ rate limit ในฐานข้อมูล) | ✅ อนุมัติ ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | 2026-11-27 |
+| D12 | ใบสั่งปฏิบัติงาน = หน้า HTML สำหรับพิมพ์ (A) หรือ PDF จาก server (B) | ✅ ผู้ใช้เลือก A ([ADR-0005](docs/adr/0005-job-order-printing.md)) | 2026-11-27 |
+| D13 | UI = Tailwind + shadcn/ui + Noto Sans Thai / Sarabun + แบรนด์ NP Pool | ✅ อนุมัติ ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | 2026-11-27 |
+| D14 | เลขที่ใบงานด้วยตารางตัวนับต่อเดือน + unique + เวลาไทย | ✅ อนุมัติ ([ADR-0007](docs/adr/0007-work-order-numbering.md)) | 2026-11-27 |
+| D15 | เวลาเก็บ `timestamptz` แสดง Asia/Bangkok ปี พ.ศ. | ✅ อนุมัติ ([ADR-0008](docs/adr/0008-dates-timezone-buddhist-year.md)) | 2026-11-27 |
+| D16 | สิทธิ์ deny by default ตรวจทุก page และ Server Action | ✅ อนุมัติ ([ADR-0009](docs/adr/0009-authorization-deny-by-default.md)) | 2026-11-27 |
+| D17 | ไม่ลบถาวร: ยกเลิกใบงาน / ปิดใช้งานข้อมูลพื้นฐาน + FK | ✅ อนุมัติ ([ADR-0010](docs/adr/0010-no-hard-delete.md)) | 2026-11-27 |
+| D18 | Migration รันใน build ของ Vercel + seed แบบรันซ้ำได้ | ✅ อนุมัติ ([ADR-0011](docs/adr/0011-migrations-and-seed-data.md)) | 2026-11-27 |
+| D19 | เปิด Cache Components + Partial Prefetching ไว้ (ค่าเริ่มต้นของ Next.js 16.4 และจะบังคับในรุ่นหลักถัดไป) — ส่วนที่อ่าน session อยู่ใน `<Suspense>` | ⏸ เสนอ (ขั้นที่ 4) | 2026-11-27 |
+| D20 | session 30 นาทีแบบต่ออายุทั้งแบบจดจำ/ไม่จดจำ: hook ใน `session-policy.ts` + `SessionKeepAlive` (ไลบรารีให้แบบไม่จดจำ 24 ชม. ไม่ต่ออายุ — ไม่ตรง BR-AU-03) | ⏸ เสนอ ([ADR-0004](docs/adr/0004-auth-better-auth.md) ผลตรวจ) | 2026-11-27 |
+| D21 | Neon: branch แยกต่อ Preview (`Create database branch for deployment: Preview`) · ไม่เชื่อม Development (กันใช้ฐานข้อมูล production บนเครื่อง) · ปิด Neon Auth | ⏸ เสนอ ([runbook 01](docs/runbook/01-vercel-neon-setup.md)) | 2026-11-27 |
+| D22 | ผู้ดูแลคนแรกสร้างจาก `ADMIN_*` ใน build (`admin:ensure`) · `env:check` เป็นขั้นแรกของ build | ⏸ เสนอ | 2026-11-27 |
+| D23 | Node.js 24.x (`engines`) ทั้ง Vercel และ CI | ⏸ เสนอ | 2026-11-27 |
 
 ## ประวัติการอนุมัติ
 
 | วันที่ | ขั้น | ผล | หมายเหตุ |
 |---|---|---|---|
+| 2026-11-27 | 3 → 4 | ผู้ใช้ “อนุมัติ ใช้แบบ A” — อนุมัติแบบระบบและ ADR ที่เสนอทั้งหมด (D10–D18) · เลือกพิมพ์ใบสั่งปฏิบัติงานด้วยหน้า HTML | — |
 | 2026-11-26 | 2 → 3 | ผู้ใช้ “ยืนยัน เริ่มขั้นที่ 3” — ยืนยันการถอดแบบ, ความสำคัญ M/S/C/Drop, MVP, ความต่างที่ตั้งใจ, ค่าเริ่มต้นของคำถามที่ยังไม่ตอบ และ D2 | ผลจากค่าเริ่มต้น Q19: MD-08 เข้า MVP (25 รายการ) |
 | 2026-11-26 | 1 → 2 | ผู้ใช้อนุมัติเริ่มขั้นที่ 2 · อนุมัติ D3 (Neon) และ D4 (Drizzle) · ตอบ Q1–Q3 | อนุญาตให้เซสชันรันสคริปต์ SELECT ด้วย Windows authentication · D2 ยังรอยืนยัน |
 | 2026-11-25 | 0 → 1 | ผู้ใช้แจ้งเปิด Remote Control และให้ดำเนินงานต่อ | D2–D4 ยังรอยืนยัน |
 | 2026-11-25 | 0 | ผู้ใช้เลือกวิธี C — ทำงานต่อในเซสชันบนเครื่องผู้ใช้ | ข้อความส่งต่องานอยู่ใน plan.md หัวข้อ 5 |
 
 ## บันทึกการทำงาน (ใหม่อยู่บน)
+
+### 2026-11-27 · เซสชันที่ 2 (ต่อ) · ขั้นที่ 4 — Foundation
+
+**ทำแล้ว**
+
+- Scaffold Next.js 16.4.6 (App Router, Turbopack, Cache Components + Partial Prefetching ตามค่าเริ่มต้น) + TypeScript strict + Tailwind 4.3 + shadcn 4.23 (preset `base-nova` บน Base UI) + ESLint
+- ฐานข้อมูล: schema Drizzle 14 ตารางตาม design 03 → `drizzle/0000_init.sql` · seed สถานะใบงาน (รันซ้ำได้) + ประเภทรถตัวอย่างสำหรับพัฒนา · ตัวออกเลขที่ใบงาน (ADR-0007)
+- Better Auth: username + admin plugin (3 บทบาท), ปิดสมัครเอง, rate limit ในฐานข้อมูล, session 30 นาทีแบบต่ออายุ (D20) · `proxy.ts` ตรวจ cookie + DAL ตรวจสิทธิ์ที่ server (ADR-0009)
+- UI ภาษาไทย: หน้าเข้าสู่ระบบ, layout + sidebar ตามบทบาท, เมนูผู้ใช้ + ออกจากระบบ, หน้าแรก (ทักทาย + ทางลัด), หน้าไม่มีสิทธิ์, หน้า placeholder ที่ตรวจสิทธิ์แล้ว 7 หน้า
+- Test 64 รายการ (unit + integration บน PGlite ที่รัน migration จริง): เลขที่ใบงาน, constraint, auth, session หมดอายุด้วยนาฬิกาจำลอง, URL ของ auth บน Vercel
+- CI GitHub Actions: lint, typecheck, test, ตรวจ migration ตรงกับ schema, build · `vercel.json` (`sin1`, `vercel-build`) · `.env.example` · `npm run env:check`
+- [Runbook 01](docs/runbook/01-vercel-neon-setup.md) ตั้งค่า Vercel + Neon ทีละคลิก (ตรวจกับเอกสาร Neon ฉบับ 2026-11-18) · README · กติกาโปรเจกต์ใน AGENTS.md
+- ตรวจบนเครื่อง: lint, typecheck, test และ build ผ่าน · เปิด dev server ตรวจหน้าเข้าสู่ระบบ (ข้อความตรวจฟอร์ม, checkbox, ข้อความเมื่อเข้าสู่ระบบไม่สำเร็จ, redirect จากหน้าที่ต้อง login) — หน้าหลัง login ยังตรวจไม่ได้เพราะไม่มีฐานข้อมูลบนเครื่อง (auto mode ไม่อนุญาตให้เปิด Postgres จำลอง) จะตรวจบน Preview
+
+**พบระหว่างทำ**
+
+- Better Auth ให้ผู้ที่ไม่ติ๊ก “จดจำ” ได้ session 24 ชั่วโมงที่ไม่ต่ออายุ และ Server Component ตั้ง cookie ไม่ได้ — แก้ด้วย D20 พร้อม test
+- `next build` ผ่านแม้ไม่มี `BETTER_AUTH_SECRET` แต่ login จะพัง → เพิ่ม `env:check` (D22)
+- `Math.random()` ใน component ที่ prerender (รวม `SidebarMenuSkeleton` ของ shadcn) ทำให้ build ล้มเมื่อเปิด Cache Components → ใช้ skeleton ความกว้างคงที่
+- Base UI: `Menu.GroupLabel` ต้องอยู่ใน `Menu.Group` ไม่งั้น error ตอนเปิดเมนู (type ไม่จับให้)
+- Neon: การเชื่อม project มีตัวเลือก “Create database branch for deployment” (Preview) และ Neon Auth เปิดเป็นค่าเริ่มต้นตอนติดตั้ง
+
+**ผลลัพธ์**
+
+- โค้ดแอป `src/**`, `drizzle/**`, `scripts/**`, `tests/**`, `.github/workflows/ci.yml`, `vercel.json`, `.env.example`, `docs/runbook/01-vercel-neon-setup.md`, README
+
+**ถัดไป**
+
+- ผู้ใช้ทำ runbook 01 → แจ้ง “ตั้งค่าเสร็จแล้ว” → Claude push → Preview แรก → ผู้ใช้เข้าสู่ระบบด้วยบัญชีผู้ดูแลแล้วส่ง Preview URL
+- ⏸ อนุมัติจบขั้นที่ 4 และ D19–D23 · ไฟล์โลโก้หรืออนุญาตคัดลอก (B8) · รายการประเภทรถจริง (B6) ก่อนทำส่วนใบงานในขั้นที่ 5
 
 ### 2026-11-26 · เซสชันที่ 2 (ต่อ) · ขั้นที่ 3 — Target Design
 

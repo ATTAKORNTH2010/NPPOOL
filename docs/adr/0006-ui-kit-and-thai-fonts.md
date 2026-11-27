@@ -1,6 +1,6 @@
 # ADR-0006: UI = Tailwind CSS + shadcn/ui + ฟอนต์ไทย
 
-- สถานะ: เสนอ
+- สถานะ: อนุมัติ (D13 — 2026-11-27)
 - วันที่: 2026-11-26
 
 ## บริบท
@@ -9,7 +9,7 @@
 
 ## ทางเลือก
 
-1. **Tailwind CSS v4 + shadcn/ui** — component เป็นโค้ดในโปรเจกต์ (บน Radix), ปรับแต่งได้เต็มที่, มี Combobox / Calendar / Dialog / Table / Sidebar / Form ครบ
+1. **Tailwind CSS v4 + shadcn/ui** — component เป็นโค้ดในโปรเจกต์ (preset `base-nova` ที่ได้ตอน scaffold อยู่บน **Base UI** ไม่ใช่ Radix), ปรับแต่งได้เต็มที่, มี Combobox / Calendar / Dialog / Table / Sidebar / Form ครบ
 2. MUI หรือ Ant Design — ครบแต่หนัก ปรับให้เป็นแบรนด์เองยากกว่า
 3. Bootstrap — คุ้นเคย แต่ไม่ได้ออกแบบมาสำหรับ React
 
@@ -23,5 +23,6 @@
 ## ผลที่ตามมา
 
 - component อยู่ในโปรเจกต์ → เราดูแลเอง แต่ปรับได้อิสระ
-- ตรวจความเข้ากันได้ของ shadcn/ui กับ Next.js 16 + Tailwind 4 ตอน scaffold
+- ตรวจความเข้ากันได้ของ shadcn/ui กับ Next.js 16 + Tailwind 4 ตอน scaffold — ✅ ขั้นที่ 4 (2026-11-27): shadcn 4.23 + Tailwind 4.3 + Next 16.4 ใช้ได้ · Base UI ใช้ prop `render` แทน `asChild` และ `Menu.GroupLabel` ต้องอยู่ใน `Menu.Group` · `cn` มาจากแพ็กเกจ `cn` · แปลข้อความ screen reader ของ sidebar/sheet เป็นไทย
+- สีที่ใช้จริง: หลัก `oklch(0.485 0.133 254.6)` · เน้น `#FFC000` (`--brand-accent`) · โลโก้: ระหว่างนี้ใช้ตราตัวอักษร + ไอคอนรถบรรทุก รอไฟล์โลโก้จากผู้ใช้ (ไม่คัดลอกจากโฟลเดอร์งานเดิมเอง)
 - ปรับขนาดตัวอักษร / ระยะบรรทัดสำหรับภาษาไทยให้อ่านง่าย (สระบน-ล่างไม่ชนกัน)

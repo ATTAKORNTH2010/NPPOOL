@@ -156,6 +156,8 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 | vercel (CLI) | 66.6.0 |
 | ~~@vercel/postgres~~ | 0.10.0 — **deprecated ห้ามใช้** |
 
+**ติดตั้งจริงในขั้นที่ 4 (2026-11-27):** next 16.4.6 · react 19.3.0 · tailwindcss 4.3.3 · shadcn 4.23.1 (preset `base-nova`) + @base-ui/react 1.9 · better-auth 1.7.28 · drizzle-orm 0.45.4 / drizzle-kit 0.31.11 · @electric-sql/pglite 0.6.0 (test) · vitest 5.1.2 + @types/node 22 · Node 24.x · GitHub Actions `actions/checkout@v7`, `actions/setup-node@v7`
+
 ### 5.2 ข้อตกลงโค้ด (ร่าง — ยืนยันในขั้นที่ 3)
 
 - TypeScript แบบ strict
@@ -184,23 +186,31 @@ description: วิธีทำ REA (Reverse Engineering Anything) — ถอด
 | MS Access | Yes/No · Currency · AutoNumber · Long Text | `boolean` · `numeric(19,4)` · identity · `text` |
 | Excel | วันที่แบบ serial number | `date` (นับวันจาก 1899-12-30) |
 
-### 5.4 คำสั่งที่ใช้บ่อย (ยืนยันจริงตอนขั้นที่ 4)
+### 5.4 คำสั่งที่ใช้บ่อย (ยืนยันแล้วในขั้นที่ 4 — ดูทั้งหมดใน README)
 
 ```bash
-npx create-next-app@latest        # scaffold โปรเจกต์ (ขั้นที่ 4)
-npm run dev                       # รันบนเครื่อง
-npx drizzle-kit generate          # สร้างไฟล์ migration จาก schema
-npx drizzle-kit migrate           # รัน migration
-vercel link                       # ผูกโฟลเดอร์กับ Vercel project
-vercel env pull .env.local        # ดึง Environment Variables มาใช้บนเครื่อง
+npm run dev                       # รันบนเครื่อง (ต้องมี .env.local ที่ชี้ Neon branch dev)
+npm run lint && npm run typecheck && npm test   # ตรวจก่อน commit (test ไม่ต้องมีฐานข้อมูล)
+npm run build                     # ต้องมี BETTER_AUTH_SECRET (ค่าสมมติได้)
+npm run db:generate               # สร้างไฟล์ migration จาก schema → ตรวจ SQL ใน drizzle/
+npm run db:migrate                # รัน migration (ใช้ DATABASE_URL_UNPOOLED)
+npm run db:seed                   # seed ข้อมูลอ้างอิง (รันซ้ำได้)
+npm run admin:ensure              # สร้างผู้ดูแลคนแรกจาก ADMIN_* ถ้ายังไม่มี
+npm run env:check                 # ตรวจว่ามี env ที่จำเป็น (แสดงแค่ชื่อ)
 ```
+
+ไม่ใช้ `vercel env pull` กับ environment Development เพราะ integration ให้ connection ของ branch หลัก (production)
 
 ## 6. ข้อควรระวัง (Gotchas)
 
 ### Vercel / Neon
 
-- **Vercel Postgres เลิกให้บริการแล้ว** — “ใช้ Vercel Postgres” ในปัจจุบัน = ติดตั้ง Neon จาก Vercel Marketplace; ใช้ `@neondatabase/serverless` ไม่ใช้ `@vercel/postgres`
-- Connection string มีทั้งแบบ pooled (ใช้กับแอป) และ direct/unpooled (ใช้รัน migration) — ใช้ให้ถูกตัว ชื่อตัวแปรจริงตรวจตอนเชื่อมต่อ
+- **Vercel Postgres เลิกให้บริการแล้ว** — “ใช้ Vercel Postgres” ในปัจจุบัน = ติดตั้ง Neon จาก Vercel Marketplace; โปรเจกต์นี้ใช้ driver `pg` (ADR-0003) ไม่ใช้ `@vercel/postgres`
+- Connection string: `DATABASE_URL` (pooled ใช้กับแอป) และ `DATABASE_URL_UNPOOLED` (direct ใช้รัน migration) — integration ใส่ `PG*`, `POSTGRES_*`, `NEON_PROJECT_ID` มาด้วย
+- หน้าติดตั้ง Neon **เปิด Neon Auth เป็นค่าเริ่มต้น** — ปิดเมื่อใช้ Better Auth
+- branch ต่อ Preview ตั้งที่การเชื่อม project: “Create database branch for deployment” → Preview (ไม่ติ๊ก Production) · ได้ branch `preview/<git branch>` สร้างจาก branch หลัก ค่า env ของ branch ใส่ตอน deploy และไม่แสดงในหน้า Environment Variables · ลบเมื่อ deployment ถูกลบ
+- environment Development ของ integration ได้ connection ของ branch หลัก — อย่าติ๊ก แล้วสร้าง branch `dev` เองสำหรับเครื่องผู้พัฒนา
+- ตัวแปร Sensitive อ่านย้อนไม่ได้ทั้งใน dashboard และ CLI และใช้กับ Development ไม่ได้
 - Driver แบบ HTTP ของ Neon (`neon-http`) ไม่รองรับ transaction แบบ interactive · บน Vercel Fluid compute ใช้ `pg` Pool ระดับ module + `attachDatabasePool()` ของ `@vercel/functions` ตามคำแนะนำของ Vercel (ADR-0003) — ตรวจวิธีใช้กับเอกสารฉบับปัจจุบันตอนขั้นที่ 4
 - Postgres `lpad()` **ตัด**ข้อความที่ยาวเกินความยาวที่กำหนด (`lpad('10000', 4, '0')` = `'1000'`) — จัดรูปแบบเลขเอกสารใน TypeScript (`padStart`)
 - `user` เป็นคำสงวนของ Postgres — ตั้งชื่อตารางผู้ใช้เป็น `users`
@@ -215,13 +225,33 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 - admin plugin: `createUser` บังคับ email, password, name · มี `setRole`, `setUserPassword`, `banUser` (ระงับแล้ว session ถูกเพิกถอน), `listUsers` · custom roles ผ่าน access control
 - rate limit ค่าเริ่มต้นเก็บในหน่วยความจำ ซึ่งไม่เหมาะกับ serverless → `storage: "database"` · กฎในตัวครอบ `/sign-in/email` — เพิ่มกฎให้ `/sign-in/username` เอง
 - Auth.js (NextAuth) อยู่ในความดูแลของทีม Better Auth ตั้งแต่ ก.ย. 2025 และแนะนำให้โปรเจกต์ใหม่ใช้ Better Auth
+- `rememberMe: false` = cookie แบบ session ของ browser **แต่** แถว session อายุ 24 ชั่วโมงตายตัวและไม่ต่ออายุเลย — ถ้าต้องการ idle timeout ต้องเขียน hook เอง (`src/lib/auth/session-policy.ts`)
+- Server Component ตั้ง cookie ไม่ได้ (plugin `nextCookies` กลืน error เงียบ ๆ) → session แบบมี Max-Age ต่ออายุได้เฉพาะผ่าน Route Handler / Server Action · DAL จึงเรียก `getSession` ด้วย `disableRefresh` และให้ client ping `/api/auth/get-session`
+- `next build` ผ่านแม้ไม่มี `BETTER_AUTH_SECRET` — ไปพังตอน login (production ไม่ยอมใช้ secret ค่าเริ่มต้น) → ตรวจ env ก่อน build
+- `createUser` ของ admin plugin ส่ง username ผ่าน `data: { username, displayUsername }` · CLI ของ Better Auth คือแพ็กเกจ `auth` (`npx auth@latest …`)
+- rate limit ใช้ IP จาก `x-forwarded-for` **เฉพาะเมื่อมีค่าเดียว** (ถ้าไม่ตั้ง `trustedProxies`) — บน Vercel ได้ค่าเดียวจาก edge จึงใช้ได้ · ถ้าหา IP ไม่ได้ใน production จะ**ข้าม** rate limit · IPv6 ถูกรวมเป็น /64 (บนเครื่องเห็นเป็น `0000:…:0000`)
 
-### Next.js 16 (ยืนยันกับเอกสารทางการอีกครั้งตอน scaffold)
+### Next.js 16 (ยืนยันแล้วตอน scaffold 16.4.6 — อ่าน `node_modules/next/dist/docs/` ก่อนเขียนโค้ด)
 
 - Turbopack เป็นค่าเริ่มต้นของ `next dev` และ `next build`
 - `middleware.ts` เปลี่ยนชื่อเป็น `proxy.ts`
 - `params`, `searchParams`, `cookies()`, `headers()` เป็น async — ต้อง `await`
 - เลิกคำสั่ง `next lint` — เรียก ESLint โดยตรง
+- `create-next-app` 16.4 เปิด **Cache Components** + Partial Prefetching ให้เลย: อะไรที่อ่าน `headers()`/session ต้องอยู่ใน `<Suspense>` ไม่งั้น build ล้ม · `new Date()`, `Date.now()`, `Math.random()` ระหว่าง prerender = build error **รวมถึงใน Client Component** (เช่น `SidebarMenuSkeleton` ของ shadcn) → ใช้ค่าคงที่ หรือ `io()` จาก `next/cache` (มีตั้งแต่ 16.3)
+- `forbidden()` ยังเป็น experimental → ใช้ `redirect("/forbidden")`
+- `next dev` เขียนบล็อกกติกาลง `AGENTS.md` เอง — commit ไว้ เขียนกติกาโปรเจกต์นอกบล็อก
+
+### shadcn/ui preset `base-nova` (Base UI)
+
+- ใช้ prop `render={<Link href=… />}` แทน `asChild` · `cn` import จากแพ็กเกจ `cn`
+- `DropdownMenuLabel` (= `Menu.GroupLabel`) ต้องอยู่ใน `DropdownMenuGroup` ไม่งั้น error ตอนเปิดเมนู — TypeScript ไม่จับ
+- `use-mobile.ts` ที่ได้มาผิดกฎ ESLint `react-hooks/set-state-in-effect` → เขียนใหม่ด้วย `useSyncExternalStore`
+- ข้อความ screen reader ของ sidebar/sheet เป็นภาษาอังกฤษ — แปลในไฟล์ component
+
+### npm 11.21
+
+- install script ของ dependency **ไม่ถูกรันจนกว่าจะอนุมัติ** (`npm install-scripts ls` / `approve`) — ในโปรเจกต์นี้มีแค่ postinstall ของ esbuild ซึ่งไม่จำเป็น จึงไม่อนุมัติ
+- vitest 5 ต้องใช้ `@types/node` ≥ 22 (ไม่งั้น `ERESOLVE`)
 
 ### ข้อมูลภาษาไทยและธุรกิจไทย
 
@@ -289,3 +319,9 @@ vercel env pull .env.local        # ดึง Environment Variables มาใช
 | 2026-11-26 | ค่าเริ่มต้นของคำถามที่ผู้ใช้ยืนยันอาจเปลี่ยนขอบเขต (Q19 → MD-08 เข้า MVP) — ไล่ผลกระทบกับ Parity Matrix ทันทีที่ได้รับการยืนยัน |
 | 2026-11-26 | ตอนออกแบบหน้าจอ ฟีเจอร์ระดับ S (เบอร์ พขร. อัตโนมัติ) เผลอเข้าไปอยู่ในแบบ MVP — เทียบแบบกับรายการ M ทุกครั้ง และติดป้ายสิ่งที่เกินขอบเขต |
 | 2026-11-26 | Mermaid บน GitHub เก่ากว่า Mermaid Live — ER diagram ที่ใช้ key พร้อมคำอธิบาย (`UK "..."`), `FK` และ `/` ในข้อความ แสดงบน Mermaid Live ได้แต่บน GitHub ขึ้น “Unable to render rich display” → ใช้ syntax พื้นฐาน (PK/UK ไม่มีคำอธิบาย) และเปิดดูบน GitHub หลัง push ทุกครั้ง |
+| 2026-11-27 | `create-next-app` 16.4 เปิด Cache Components ให้เลย — ออกแบบ layout ให้ส่วนที่อ่าน session อยู่ใน `<Suspense>` ตั้งแต่แรก และอ่าน `node_modules/next/dist/docs/` แทนความจำ |
+| 2026-11-27 | ไลบรารี auth “รองรับ remember me” ไม่ได้แปลว่าตรงกฎธุรกิจ — Better Auth ให้แบบไม่จดจำ 24 ชม. ไม่ต่ออายุ จึงต้องเขียน test ด้วยนาฬิกาจำลอง (`vi.useFakeTimers({ toFake: ["Date"] })`) เทียบกับ BR ทุกครั้ง |
+| 2026-11-27 | PGlite รัน migration จริงของ drizzle ในหน่วยความจำได้ใน ~4 วินาที — integration test (constraint, auth, session) ไม่ต้องใช้ Docker หรือฐานข้อมูลบนคลาวด์ |
+| 2026-11-27 | build ผ่าน ≠ deploy ใช้ได้: `next build` ไม่ต้องการ secret ของ auth — ให้ขั้นแรกของ build บน Vercel ตรวจ env ที่จำเป็น (แสดงแค่ชื่อ) |
+| 2026-11-27 | auto mode ไม่อนุญาตให้เปิด Postgres จำลอง (pglite-socket) บนเครื่อง — ตรวจ UI ที่ไม่ต้องใช้ฐานข้อมูลด้วย dev server แล้วตรวจส่วนที่เหลือบน Preview; อย่าหาทางอ้อม |
+| 2026-11-27 | แก้ไฟล์ markdown ด้วย regex แบบ script พลาดไปโดนบรรทัดคำอธิบายแทนแถวตาราง — ใช้ Edit ทีละจุด หรือดู `git diff` ทุกครั้งหลังแก้ด้วย script |

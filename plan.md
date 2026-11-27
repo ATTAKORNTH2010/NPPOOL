@@ -1,6 +1,6 @@
 # NPPool — แผนงาน REA (Reverse Engineering Anything)
 
-> **สถานะ:** ฉบับร่าง v0.4 · 2026-11-26 · ขั้นที่ 0–2 เสร็จและอนุมัติแล้ว · ขั้นที่ 3 เสร็จ → [docs/design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) · **⏸ รออนุมัติแบบก่อนเริ่มขั้นที่ 4**
+> **สถานะ:** ฉบับร่าง v0.6 · 2026-11-27 · ขั้นที่ 0–3 เสร็จและอนุมัติแล้ว ([design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md)) · **🟨 ขั้นที่ 4 Foundation: โค้ดพร้อม — รอผู้ใช้ตั้งค่า Vercel + Neon ([runbook 01](docs/runbook/01-vercel-neon-setup.md)) เพื่อ Preview แรก**
 > บันทึกการทำงาน → [Roadmap.md](Roadmap.md) · วิธีการ แม่แบบ และความรู้ → [skill.md](skill.md)
 
 ---
@@ -24,7 +24,7 @@
 | ภาษา/เฟรมเวิร์กเดิม, ฟีเจอร์, ฐานข้อมูล, ผู้ใช้และสิทธิ์ | ✅ ASP.NET Core 8 MVC + Dapper + SQL Server · 9 หน้าจอ · 12 ตาราง + 14 view · 3 บทบาท — ดู [01-inventory.md](docs/rea/01-inventory.md) |
 | ระบบที่ใช้งานจริงและข้อมูล | ✅ ระบบไม่ได้เปิดใช้งานแล้ว (ใช้ซอร์สล่าสุดเป็นต้นแบบ) · ฐานข้อมูลบนเครื่องผู้ใช้ไม่มีใบงาน ข้อมูลพื้นฐานเป็นข้อมูลทดสอบ · ไม่มี FK (01-inventory หัวข้อ 8.0) |
 | Domain model, กฎธุรกิจ, Parity Matrix | ✅ ขั้นที่ 2 ยืนยันแล้ว — [02](docs/rea/02-domain-model.md) · [03](docs/rea/03-feature-parity.md) · [04](docs/rea/04-business-rules.md) · MVP 25 รายการ |
-| แบบระบบใหม่ | ⏸ ขั้นที่ 3 — [design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) |
+| แบบระบบใหม่ | ✅ ขั้นที่ 3 อนุมัติ 2026-11-27 — [design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) |
 | กฎธุรกิจที่ไม่อยู่ในโค้ด | 🟨 ส่วนใหญ่ใช้ค่าเริ่มต้นที่ยืนยันแล้ว · ยังเปิด: Q4, Q10 (ลำดับสถานะ), Q12, Q13, Q16, Q18, Q21, Q22 (ประเภทรถจริง), Q23, Q27, Q28 — 01-inventory หัวข้อ 15 |
 
 ## 3. ทิศทางเทคโนโลยีที่เสนอ (ตรวจเวอร์ชันจาก npm เมื่อ 2026-11-25)
@@ -32,23 +32,23 @@
 | ส่วน | ที่เสนอ | เหตุผล / หมายเหตุ |
 |---|---|---|
 | Framework | **Next.js 16** (App Router, ล่าสุด 16.4.6) + React 19 + TypeScript ✅ อนุมัติ (D2, ADR-0001) | ตามโจทย์ และเป็นเฟรมเวิร์กที่ Vercel รองรับดีที่สุด |
-| Runtime | Node.js ≥ 20.9 (ใช้เวอร์ชัน LTS ที่ Vercel รองรับ — ยืนยันในขั้นที่ 4) | ข้อกำหนดขั้นต่ำของ Next.js 16 |
+| Runtime | Node.js **24.x** (`engines` ใน package.json + CI) — เสนอ D23 ในขั้นที่ 4 | Next.js 16 ต้องการ ≥ 20.9 · ใช้ LTS ล่าสุดที่ Vercel รองรับ |
 | Database | **Postgres ผ่าน Vercel Marketplace → Neon** ✅ อนุมัติ (D3, 2026-11-26) | Vercel Postgres เดิมเลิกให้บริการแล้ว (หัวข้อ 3.1) |
-| DB driver | ⏸ เสนอ `pg` Pool + `attachDatabasePool` บน Vercel Fluid ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | ต้องใช้ transaction แบบ interactive · ไม่ใช้ `@vercel/postgres` ที่ถูก deprecate |
+| DB driver | ✅ อนุมัติ `pg` Pool + `attachDatabasePool` บน Vercel Fluid ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | ต้องใช้ transaction แบบ interactive · ไม่ใช้ `@vercel/postgres` ที่ถูก deprecate |
 | ORM / Migration | **Drizzle ORM + drizzle-kit** ✅ อนุมัติ (D4, 2026-11-26) | type-safe, เบา, เหมาะกับ serverless, migration เป็นไฟล์ SQL อ่านตรวจง่าย |
 | Validation | Zod | ตรวจข้อมูลเข้าที่ Server Action / API ทุกจุด |
-| UI | ⏸ เสนอ Tailwind CSS v4 + shadcn/ui + ฟอนต์ไทย ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | |
-| Auth | ⏸ เสนอ Better Auth — username + admin plugin ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | Auth.js อยู่ในความดูแลของทีม Better Auth แล้ว · ไม่ย้ายรหัสผ่านเดิม |
-| PDF / พิมพ์ | ⏸ ขอให้เลือก: เสนอหน้า HTML สำหรับพิมพ์ ([ADR-0005](docs/adr/0005-job-order-printing.md)) | ระบบเดิมใช้ wkhtmltopdf (.exe) ซึ่งใช้บน Vercel ไม่ได้ |
-| Test | Vitest (unit) + Playwright (E2E / เทียบผลกับระบบเดิม) | |
+| UI | ✅ อนุมัติ Tailwind CSS v4 + shadcn/ui + ฟอนต์ไทย ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | |
+| Auth | ✅ อนุมัติ Better Auth — username + admin plugin ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | Auth.js อยู่ในความดูแลของทีม Better Auth แล้ว · ไม่ย้ายรหัสผ่านเดิม |
+| PDF / พิมพ์ | ✅ เลือก A: หน้า HTML สำหรับพิมพ์ / บันทึก PDF จาก browser ([ADR-0005](docs/adr/0005-job-order-printing.md)) | ระบบเดิมใช้ wkhtmltopdf (.exe) ซึ่งใช้บน Vercel ไม่ได้ |
+| Test | Vitest (unit + integration บน PGlite ที่รัน migration จริง) + Playwright (E2E บน Preview / เทียบผลกับระบบเดิม) | integration test ไม่ต้องมีฐานข้อมูลภายนอก |
 | CI/CD | GitHub Actions (lint, typecheck, test, build) + Vercel Git Integration | Preview ทุก branch, Production จาก `main` |
-| Region | ฐานข้อมูลและ Functions อยู่ Singapore (ใกล้ผู้ใช้ในไทย) | ยืนยันในขั้นที่ 4 |
+| Region | ฐานข้อมูลและ Functions อยู่ Singapore (ใกล้ผู้ใช้ในไทย) | ✅ Neon `aws-ap-southeast-1` + Functions `sin1` (`vercel.json`) |
 
 ### 3.1 หมายเหตุสำคัญเรื่อง “Vercel Postgres”
 
 - ผลิตภัณฑ์ **Vercel Postgres เดิมเลิกให้บริการแล้ว** — ฐานข้อมูลเดิมถูกย้ายไป Neon ตั้งแต่ ธ.ค. 2024 และแพ็กเกจ `@vercel/postgres` ถูก deprecate (npm แจ้งไว้ชัดเจน)
 - วิธีปัจจุบันในการมี Postgres บน Vercel: Vercel Dashboard → Storage / Marketplace → **Neon** → ผูกกับโปรเจกต์ → Vercel ใส่ connection string เป็น Environment Variables ให้อัตโนมัติ, คิดเงินผ่านบิล Vercel, เปิดดูตาราง/รัน SQL จาก Dashboard ได้ (เอกสาร Neon ฉบับปัจจุบันเรียกฐานข้อมูลนี้ว่า “Lakebase Postgres”)
-- ตอนติดตั้งมี 2 แบบ: *Create New Neon Account* (Vercel จัดการบัญชีและบิลให้) หรือ *Link Existing Neon Account* — ความสามารถสร้าง database branch อัตโนมัติให้ Preview deployment ต่างกันระหว่างสองแบบ จะตรวจและเสนออีกครั้งในขั้นที่ 4
+- ตอนติดตั้งมี 2 แบบ: *Create New Neon Account* (Vercel จัดการบัญชีและบิลให้) หรือ *Link Existing Neon Account* — ✅ ตรวจแล้วในขั้นที่ 4: แบบ *Create New Neon Account* (Vercel-Managed) สร้าง branch ต่อ Preview ได้ โดยติ๊ก “Create database branch for deployment: Preview” ตอนเชื่อม project (D21, [runbook 01](docs/runbook/01-vercel-neon-setup.md))
 - ทางเลือกอื่นใน Marketplace มีเช่น Supabase, Prisma Postgres, AWS Aurora Postgres — เสนอ Neon เพราะเป็นผู้ให้บริการที่รับช่วง Vercel Postgres เดิมโดยตรง
 - **จึงเสนอให้ใช้ Neon ผ่าน Vercel Marketplace ในฐานะ “Vercel Postgres” ฉบับปัจจุบัน** — ✅ ผู้ใช้อนุมัติแล้ว 2026-11-26
 
@@ -90,7 +90,7 @@
 
 **ผลลัพธ์:** `docs/rea/02-domain-model.md` (รวม role matrix และ user flow), `03-feature-parity.md`, `04-business-rules.md` · **⏸ ผู้ใช้ยืนยันว่าถอดแบบถูกต้อง + เลือกขอบเขต MVP** (รายการที่ขอยืนยันอยู่ใน 03 หัวข้อ 7)
 
-### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design) ⏸ *เสร็จ 2026-11-26 · รออนุมัติแบบ*
+### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design) ✅ *เสร็จ 2026-11-26 · อนุมัติ 2026-11-27*
 
 - สถาปัตยกรรม, โครงสร้างโฟลเดอร์, แผนผังหน้าจอ (route map)
 - Postgres schema ใหม่ + ตาราง mapping ข้อมูลเดิม → ใหม่
@@ -100,14 +100,15 @@
 
 **ผลลัพธ์:** `docs/design/*` (สถาปัตยกรรม, หน้าจอ/route map, ฐานข้อมูล + mapping), `docs/adr/*` (11 ฉบับ) · **⏸ อนุมัติแบบ**
 
-### ขั้นที่ 4 — วางรากฐานโปรเจกต์ (Foundation) ← *ถัดไป*
+### ขั้นที่ 4 — วางรากฐานโปรเจกต์ (Foundation) 🟨 *โค้ดพร้อม 2026-11-27 — รอ Preview แรก*
 
-- Scaffold Next.js 16 + TypeScript + Tailwind + ESLint
-- Drizzle + Neon: schema เริ่มต้น, migration, seed
-- `.env.example` และ `.gitignore` กันความลับหลุด (repo เป็น public)
-- GitHub Actions CI
-- ผู้ใช้สร้าง/เชื่อม Vercel project และติดตั้ง Neon จาก Marketplace ในบัญชีของตัวเอง (จะเตรียมขั้นตอนให้ทีละคลิก) → Preview deployment แรก
-- Layout หลัก + ระบบ login
+- ✅ Scaffold Next.js 16 + TypeScript + Tailwind + ESLint (+ shadcn/ui บน Base UI)
+- ✅ Drizzle: schema ครบตาม design 03, migration `drizzle/0000_init.sql`, seed แบบรันซ้ำได้
+- ✅ `.env.example` และ `.gitignore` กันความลับหลุด (repo เป็น public) · `npm run env:check`
+- ✅ GitHub Actions CI (lint, typecheck, test, migration ตรง schema, build)
+- ✅ Layout หลัก + ระบบ login (Better Auth, เมนูตามบทบาท, session 30 นาที)
+- ✅ ขั้นตอนทีละคลิก: [runbook 01](docs/runbook/01-vercel-neon-setup.md)
+- ⬜ ผู้ใช้สร้าง/เชื่อม Vercel project และติดตั้ง Neon จาก Marketplace ในบัญชีของตัวเอง → Preview deployment แรก → login ด้วยบัญชีผู้ดูแล
 
 **ผลลัพธ์:** แอปตั้งต้นที่ deploy บน Vercel และต่อฐานข้อมูลได้ · **⏸ อนุมัติ**
 
@@ -237,12 +238,12 @@
 | เงื่อนไขหรือราคาของ Vercel / Neon เปลี่ยน | ตรวจตอนขั้นที่ 4; Drizzle ทำให้ย้ายผู้ให้บริการ Postgres ได้ |
 | ข้อมูลภาษาไทยจากระบบเก่าเข้ารหัสแบบเก่า (TIS-620 / Windows-874) หรือเก็บปีเป็น พ.ศ. | ตรวจในขั้นที่ 1 แปลงในขั้นที่ 6 (ดู skill.md) |
 
-## 8. สิ่งที่ขออนุมัติตอนนี้ (จบขั้นที่ 3)
+## 8. สิ่งที่ต้องทำ / ขออนุมัติตอนนี้ (ขั้นที่ 4)
 
-1. **แบบระบบ** — [สถาปัตยกรรม](docs/design/01-architecture.md), [หน้าจอและ route map](docs/design/02-screens-and-routes.md), [ฐานข้อมูลและ mapping](docs/design/03-database.md)
-2. **ADR ที่เสนอ** (D10–D18 ใน Roadmap) — โดยเฉพาะ **เลือกวิธีพิมพ์ใบสั่งปฏิบัติงาน** ADR-0005: A หน้า HTML พิมพ์/บันทึก PDF จาก browser (เสนอ) หรือ B สร้างไฟล์ PDF ที่ server
-3. **ข้อมูลที่ต้องเตรียม:** รายการประเภทรถจริง (Q22) · บัญชี Vercel ที่เข้าถึง repo นี้ได้ (ขั้นที่ 4 จะเตรียมขั้นตอนติดตั้ง Neon ทีละคลิกให้)
+1. **ผู้ใช้ตั้งค่า Vercel + Neon** ตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) แล้วแจ้ง Claude → Preview แรก → เข้าสู่ระบบด้วยบัญชีผู้ดูแล แล้วส่ง Preview URL
+2. **อนุมัติการตัดสินใจในขั้นที่ 4** — D19–D23 ใน Roadmap (Cache Components, session 30 นาทีทั้งสองแบบ, Neon branch ต่อ Preview, สร้างผู้ดูแลจาก env, Node 24)
+3. **ข้อมูลที่ต้องเตรียม:** ไฟล์โลโก้ NP Pool หรืออนุญาตให้คัดลอกจากโฟลเดอร์งานเดิม (B8) · รายการประเภทรถจริง (Q22 / B6) ก่อนทำส่วนใบงาน
 
-ประวัติ: ขั้นที่ 0 อนุมัติ 2026-11-25 · ขั้นที่ 1 อนุมัติ 2026-11-26 (D3, D4) · ขั้นที่ 2 ยืนยัน 2026-11-26 (MVP 25 รายการ, D2, ค่าเริ่มต้นของคำถาม)
+ประวัติ: ขั้นที่ 0 อนุมัติ 2026-11-25 · ขั้นที่ 1 อนุมัติ 2026-11-26 (D3, D4) · ขั้นที่ 2 ยืนยัน 2026-11-26 (MVP 25 รายการ, D2, ค่าเริ่มต้นของคำถาม) · ขั้นที่ 3 อนุมัติ 2026-11-27 (D10–D18, พิมพ์แบบ A)
 
-เมื่ออนุมัติ จะเริ่ม **ขั้นที่ 4 (Foundation)** แล้วกลับมาขออนุมัติเมื่อ Preview deployment แรกพร้อม
+เมื่อ Preview แรกใช้งานได้และได้รับอนุมัติ จะเริ่ม **ขั้นที่ 5 (Rebuild)** โมดูลแรก: ผู้ใช้และสิทธิ์

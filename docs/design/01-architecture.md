@@ -105,11 +105,12 @@ flowchart LR
 
 | Environment | ที่มา | ฐานข้อมูล | หมายเหตุ |
 |---|---|---|---|
-| Local | `npm run dev` บนเครื่องผู้พัฒนา | Neon branch สำหรับพัฒนา (ดึงค่าด้วย `vercel env pull .env.local`) | ห้ามใช้ฐานข้อมูล production |
-| Preview | ทุก branch / PR บน Vercel | Neon branch แยกต่อ Preview ถ้าการเชื่อมแบบที่เลือกรองรับ (ตรวจขั้นที่ 4) | ใช้ทดสอบ E2E และ UAT |
+| Local | `npm run dev` บนเครื่องผู้พัฒนา | Neon branch `dev` ที่สร้างเองใน Neon Console ใส่ค่าลง `.env.local` — ไม่เชื่อม Development environment ของ integration เพราะจะได้ connection ของ branch หลัก (ตรวจขั้นที่ 4) | ห้ามใช้ฐานข้อมูล production |
+| Preview | ทุก branch / PR บน Vercel | Neon branch `preview/<git branch>` สร้างจาก branch หลักตอน deploy — ตั้ง “Create database branch for deployment: Preview” ([runbook 01](../runbook/01-vercel-neon-setup.md)) | ใช้ทดสอบ E2E และ UAT · ลบอัตโนมัติเมื่อ deployment ถูกลบ |
 | Production | branch `main` | Neon branch หลัก · Singapore | merge เข้า `main` ผ่าน PR เมื่อผู้ใช้สั่งเท่านั้น |
 
-- Migration รันเป็นขั้นแรกของ build ของแต่ละ environment (ADR-0011) — ถ้า migrate ไม่ผ่าน build ไม่ผ่านและไม่ deploy
+- Build บน Vercel (`npm run vercel-build`): ตรวจ env ที่จำเป็น → migrate → seed → สร้างผู้ดูแลคนแรกจาก `ADMIN_*` ถ้ายังไม่มี → `next build` (ADR-0011) — ขั้นใดไม่ผ่าน build ไม่ผ่านและไม่ deploy
+- ตรวจ env ก่อนเพราะ `next build` ผ่านได้แม้ไม่มี `BETTER_AUTH_SECRET` แล้วไปพังตอน login
 - Region: Vercel Functions `sin1` + Neon `aws-ap-southeast-1` (Singapore) ให้อยู่ใกล้กัน
 
 ## 8. การทดสอบ
@@ -117,14 +118,14 @@ flowchart LR
 | ระดับ | เครื่องมือ | ครอบคลุม |
 |---|---|---|
 | Unit | Vitest | กฎใน 04-business-rules ที่มีตัวอย่าง input → output: เลขที่ใบงาน (รวมข้ามเดือน/ปี และบันทึกพร้อมกัน), Zod schema ทุกฟอร์ม, จัดรูปแบบวันที่ พ.ศ./เงิน, role → สิทธิ์ |
-| Integration | Vitest + Neon branch ทดสอบ | การออกเลขที่ใบงานพร้อมกันหลาย transaction ไม่ซ้ำ · FK และ check constraint |
+| Integration | Vitest + PGlite (Postgres ในหน่วยความจำ รัน migration จริง) · กรณีที่ต้องใช้หลาย connection พร้อมกันใช้ Neon branch ทดสอบ | การออกเลขที่ใบงาน · FK และ check constraint · Better Auth (username, ระงับบัญชี, session 30 นาทีด้วยนาฬิกาจำลอง) |
 | E2E | Playwright บน Preview | UC-01 ถึง UC-09 (02-domain-model หัวข้อ 7) · ทุกบทบาท × ทุก route ตาม role matrix · หน้าพิมพ์ |
 | ตรวจด้วยตา | ผู้ใช้ (UAT ขั้นที่ 7) | หน้าตา, ภาษา, ใบสั่งปฏิบัติงานเทียบแบบเดิม |
 
 ## 9. สิ่งที่ต้องตรวจจริงในขั้นที่ 4 (ก่อนเขียนโค้ด)
 
-1. ชื่อ environment variable ที่ Neon ผ่าน Vercel Marketplace สร้างให้ (pooled / unpooled) และการสร้าง database branch ต่อ Preview
-2. วิธีใช้ `attachDatabasePool` กับ `pg` + Drizzle ตามเอกสาร Vercel ฉบับปัจจุบัน
-3. Better Auth: การสร้างผู้ใช้ด้วย username ผ่าน admin plugin (`data.username`) และรูปแบบอีเมลสมมติ (ADR-0004)
+1. ✅ `DATABASE_URL` (pooled) / `DATABASE_URL_UNPOOLED` (direct) · branch ต่อ Preview เปิดได้ที่การเชื่อม project (หัวข้อ 7)
+2. ✅ `pg` Pool ระดับ module + `attachDatabasePool(pool)` + `drizzle({ client: pool })` (`src/db/client.ts`)
+3. ✅ Better Auth: `createUser` + `data.username` และอีเมลสมมติ ผ่าน integration test (ADR-0004 หัวข้อผลตรวจ)
 4. ปฏิทินเลือกวันของ shadcn/ui (react-day-picker 10) แสดงปี พ.ศ. ได้อย่างไร (ADR-0008)
 5. หน้าพิมพ์: ผลการพิมพ์ A4 บน Chrome/Edge และชื่อไฟล์เมื่อบันทึกเป็น PDF (ADR-0005)

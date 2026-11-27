@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      # Unit + integration tests; integration tests run the real migrations on PGlite in memory.
+      - run: npm test
+
+      - name: Migrations match the schema
+        run: |
+          npm run db:check
+          npx drizzle-kit generate
+          git diff --exit-code -- drizzle
+          test -z "$(git status --porcelain -- drizzle)"
+
+      # Placeholder values only: the build never connects to a database.
+      - name: Build
+        run: npm run build
+        env:
+          BETTER_AUTH_SECRET: ci-build-only-secret-not-used-anywhere-0123456789
+          BETTER_AUTH_URL: http://localhost:3000
+          DATABASE_URL: postgres://build:build@127.0.0.1:1/build
