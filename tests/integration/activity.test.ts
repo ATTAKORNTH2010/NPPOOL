@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { users } from "@/db/schema";
+import { ACTIVITY_RETENTION_MONTHS } from "@/features/activity/catalog";
 import {
   listActivity,
   parseActivityFilters,
+  purgeExpiredActivity,
   recordActivity,
   summarizeActivity,
 } from "@/features/activity/service";
@@ -106,5 +108,19 @@ describe("activity log", () => {
     await recordActivity(db, { userId: "u-b", module: "workOrders", action: "delete", detail: "ก".repeat(600) });
     const [row] = (await listActivity(db, parseActivityFilters({ action: "delete" }), 1)).rows;
     expect(row?.detail).toHaveLength(500);
+  });
+
+  it(`keeps ${ACTIVITY_RETENTION_MONTHS} months of entries and purges anything older`, async () => {
+    const entry = (detail: string, iso: string) =>
+      recordActivity(db, { userId: "u-b", module: "routes", action: "view", detail, occurredAt: new Date(iso) });
+    await entry("เก่ากว่า 3 เดือน", "2026-08-26T23:59:59Z");
+    await entry("ยังอยู่ในช่วงเก็บ", "2026-08-27T00:00:01Z");
+    const now = new Date("2026-11-27T00:00:00Z");
+
+    expect(await purgeExpiredActivity(db, now)).toBe(1);
+    const left = await listActivity(db, parseActivityFilters({ module: "routes" }), 1);
+    expect(left.rows.map((row) => row.detail)).toEqual(["ยังอยู่ในช่วงเก็บ"]);
+    expect((await listActivity(db, parseActivityFilters({}), 1)).total).toBe(6);
+    expect(await purgeExpiredActivity(db, now)).toBe(0);
   });
 });

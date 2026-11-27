@@ -2,12 +2,18 @@
  * Activity log storage and the admin view (ADR-0012). No Next.js imports, so
  * integration tests run it on PGlite.
  */
-import { and, count, desc, eq, gte, isNotNull, lt, max, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, max, sql, type SQL } from "drizzle-orm";
 import { activityLogs, users } from "@/db/schema";
 import type { AppDatabase } from "@/db/types";
 import { bangkokDayEnd, bangkokDayStart, isYmd, orderedRange } from "@/lib/date-range";
 import { sortByThai } from "@/lib/thai-sort";
-import { isActivityAction, isActivityModule, type ActivityAction, type ActivityModule } from "./catalog";
+import {
+  ACTIVITY_RETENTION_MONTHS,
+  isActivityAction,
+  isActivityModule,
+  type ActivityAction,
+  type ActivityModule,
+} from "./catalog";
 
 export const ACTIVITY_PAGE_SIZE = 50;
 
@@ -37,6 +43,20 @@ export async function recordActivity(db: AppDatabase, entry: ActivityEntry): Pro
     userAgent: clip(entry.userAgent, 300),
     ...(entry.occurredAt ? { occurredAt: entry.occurredAt } : {}),
   });
+}
+
+/**
+ * Deletes entries older than the retention window and returns how many went.
+ * They are an audit trail, not business rows, so ADR-0010's no-hard-delete
+ * rule does not cover them (ADR-0012).
+ */
+export async function purgeExpiredActivity(db: AppDatabase, now: Date = new Date()): Promise<number> {
+  const cutoff = sql`${now.toISOString()}::timestamptz - make_interval(months => ${ACTIVITY_RETENTION_MONTHS}::int)`;
+  const removed = await db
+    .delete(activityLogs)
+    .where(lt(activityLogs.occurredAt, cutoff))
+    .returning({ id: activityLogs.id });
+  return removed.length;
 }
 
 // ----------------------------------------------------------------- admin view

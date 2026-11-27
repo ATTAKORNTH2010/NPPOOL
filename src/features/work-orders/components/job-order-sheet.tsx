@@ -1,3 +1,4 @@
+import { Logo } from "@/components/layout/logo";
 import { formatDateTh, formatTimeTh } from "@/lib/format";
 import type { WorkOrderDetail } from "../service";
 import { WORK_STATUS } from "../statuses";
@@ -38,10 +39,8 @@ export function JobOrderSheet({ order }: { order: WorkOrderDetail }) {
   return (
     <article className="job-order mx-auto w-[277mm] bg-white text-[11pt] leading-snug text-black">
       <header className="mb-2 flex items-end gap-4">
-        <div className="flex w-[70mm] items-baseline gap-1" aria-label="NP POOL GROUP">
-          <span className="text-[20pt] font-bold tracking-tight text-[#E06A1B] italic">N.P.</span>
-          <span className="text-[20pt] font-bold tracking-tight text-[#1F6F3A] italic">POOL</span>
-          <span className="text-[8pt] font-bold text-[#1F6F3A]">GROUP</span>
+        <div className="w-[70mm] shrink-0">
+          <Logo className="h-[18mm] w-auto" />
         </div>
         <h1 className="text-[26pt] leading-none font-bold underline underline-offset-4">ใบสั่งปฏิบัติงาน</h1>
         {cancelled ? (

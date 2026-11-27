@@ -2,6 +2,13 @@
  * Names used in the activity log (ADR-0012). Keys are stored in the database;
  * labels are what the admin sees. Pure: safe in the browser.
  */
+
+/**
+ * Retention (owner's decision of 2026-11-27): entries are kept for three
+ * calendar months, then purged (service.ts, purgeExpiredActivity).
+ */
+export const ACTIVITY_RETENTION_MONTHS = 3;
+
 export const ACTIVITY_MODULES = {
   auth: "เข้าสู่ระบบ",
   home: "หน้าแรก",

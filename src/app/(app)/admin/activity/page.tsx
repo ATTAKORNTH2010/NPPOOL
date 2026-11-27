@@ -9,7 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/db/client";
-import { ACTIVITY_MODULES, actionLabel, moduleLabel } from "@/features/activity/catalog";
+import { ACTIVITY_MODULES, ACTIVITY_RETENTION_MONTHS, actionLabel, moduleLabel } from "@/features/activity/catalog";
 import { ActivityFiltersForm } from "@/features/activity/components/activity-filters";
 import {
   listActivity,
@@ -61,7 +61,10 @@ async function ActivityContent({ searchParams }: Pick<PageProps<"/admin/activity
 
   return (
     <>
-      <PageHeader title="Activity Logs" description="การเข้าใช้งานของผู้ใช้แต่ละคนในแต่ละฟังก์ชัน" />
+      <PageHeader
+        title="Activity Logs"
+        description={`การเข้าใช้งานของผู้ใช้แต่ละคนในแต่ละฟังก์ชัน · เก็บไว้ ${ACTIVITY_RETENTION_MONTHS} เดือน รายการที่เก่ากว่านั้นระบบลบให้อัตโนมัติ`}
+      />
 
       <ActivityFiltersForm key={query} filters={filters} users={users} />
 

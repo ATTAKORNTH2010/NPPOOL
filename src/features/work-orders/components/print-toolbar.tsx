@@ -4,15 +4,21 @@ import { Printer, X } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+/** Printing before the fonts and the logo have loaded leaves them out of the PDF. */
+async function pageReady(): Promise<void> {
+  await document.fonts.ready;
+  await Promise.all(Array.from(document.images, (image) => image.decode().catch(() => undefined)));
+}
+
 /**
- * ADR-0005 A: opens the browser's print dialog once the fonts are ready.
+ * ADR-0005 A: opens the browser's print dialog once the page is ready.
  * The document title becomes the PDF file name, e.g. JobOrder_NP2569110001.
  */
 export function PrintToolbar({ title }: { title: string }) {
   useEffect(() => {
     document.title = title;
     let cancelled = false;
-    void document.fonts.ready.then(() => {
+    void pageReady().then(() => {
       if (!cancelled) window.print();
     });
     return () => {

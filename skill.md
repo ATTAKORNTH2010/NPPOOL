@@ -286,6 +286,7 @@ npm run env:check                 # ตรวจว่ามี env ที่จ
 
 - Repo `ATTAKORNTH2010/NPPOOL` เป็น **public** — `.env*` ต้องอยู่ใน `.gitignore` และความลับเก็บบน Vercel เท่านั้น
 - ตรวจ visibility ของ repo ทุกครั้งก่อนให้ push งานเดิมหรือข้อมูลขึ้น GitHub
+- การอัปโหลดไฟล์ผ่านหน้าเว็บ GitHub ไม่ผ่าน `.gitignore` — ถ้าไฟล์จริงหลุดขึ้น branch สาธารณะ: force-push กลับ commit ก่อนหน้าด้วย `--force-with-lease=<ref>:<sha เดิม>` (ต้องได้รับอนุมัติ) · commit เดิมยังเปิดได้ด้วยเลข commit และเห็นใน event ของ repo → เจ้าของ repo แจ้ง GitHub Support · **ห้ามเขียนเลข commit นั้นลงเอกสารใน repo**
 
 ## 7. วิธีทำงานกับผู้ใช้ (Workflow)
 
@@ -341,3 +342,5 @@ npm run env:check                 # ตรวจว่ามี env ที่จ
 | 2026-11-27 | ค้นหาด้วย ILIKE ต้อง escape `\` `%` `_` ของข้อความผู้ใช้ ไม่งั้น `%` กลายเป็น wildcard · ช่วงวันที่ให้แปลงเป็น [00:00 วันแรก, 00:00 วันถัดจากวันสุดท้าย) ตามเวลาไทย |
 | 2026-11-27 | Bash tool: heredoc/`node -e` ที่มี backtick, `${}` หรือ regex `\d` พังง่าย (ข้อความหาย คอมเมนต์โดนแทน) — ไฟล์ที่มีอักขระพวกนี้ให้ใช้ Write/Edit แทน และตรวจผลทุกครั้ง |
 | 2026-11-27 | ESLint ของ Next.js ห้ามตั้งชื่อตัวแปร `module` (`no-assign-module-variable`) · ห้าม `window.location.assign` ไปหน้าภายใน ให้ใช้ `router.push` |
+| 2026-11-27 | `next/image` ใน Next.js 16: `priority` เลิกใช้แล้ว ใช้ `loading="eager"` (หรือ `preload`) · หน้าพิมพ์ต้องรอทั้ง `document.fonts.ready` และ `img.decode()` ก่อน `window.print()` ไม่งั้นโลโก้/ฟอนต์อาจหายจาก PDF · รูปเล็กใช้ `unoptimized` ได้ ไม่เปลืองโควตา Image Optimization |
+| 2026-11-27 | ลบข้อมูลตามอายุโดยไม่ต้องมี cron: ทำใน `after()` หลังเขียน log อย่างมากชั่วโมงละครั้งต่อ instance (ตัวแปรระดับ module) · คำนวณ “3 เดือนตามปฏิทิน” ใน Postgres (`make_interval(months => 3)`) แทนการบวกเดือนเองใน JS |
