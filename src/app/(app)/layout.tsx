@@ -27,7 +27,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
       </SidebarInset>
-      <SessionKeepAlive />
+      {/* usePathname() is request data on dynamic routes such as /work-orders/[id]. */}
+      <Suspense fallback={null}>
+        <SessionKeepAlive />
+      </Suspense>
     </SidebarProvider>
   );
 }
