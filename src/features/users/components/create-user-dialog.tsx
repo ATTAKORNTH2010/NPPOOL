@@ -20,7 +20,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { createUserAction } from "../actions";
 import { createUserSchema, type CreateUserInput } from "../schemas";
-import { applyFieldErrors } from "./form-errors";
+import { applyFieldErrors } from "@/components/form/apply-field-errors";
 import { RoleSelect } from "./role-select";
 
 const EMPTY: CreateUserInput = { username: "", name: "", phone: "", role: "maker", password: "" };
