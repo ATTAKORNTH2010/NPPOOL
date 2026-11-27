@@ -39,3 +39,17 @@ Better Auth 1.7.x + Drizzle adapter:
 - กฎ “ห้ามระงับ/ลดบทบาท Admin คนสุดท้าย” และ “Admin ระงับตัวเองไม่ได้” เขียนในแอปเอง
 - ไม่ย้ายรหัสผ่านจากระบบเดิม (AUTH-09 Drop) — ไม่ต้องรองรับ hash ของ ASP.NET Core Identity
 - username ใช้ `-` `@` `+` ไม่ได้ (ระบบเดิมได้) — ไม่กระทบเพราะสร้างบัญชีใหม่ทั้งหมด
+
+## ผลตรวจในขั้นที่ 4 (2026-11-27)
+
+- ปิดสมัครเอง: `emailAndPassword.disableSignUp: true` · ตาราง `users`, `sessions`, `accounts`, `verifications`, `rate_limits` (Drizzle adapter `usePlural`) — ผ่าน integration test บน PGlite
+- `createUser` + `data: { username, displayUsername }` ใช้ได้ · login ไม่สนตัวพิมพ์ · ผู้ใช้ที่ถูกระงับ login ไม่ได้
+- rate limit: `/sign-in/username` 5 ครั้งต่อ 60 วินาที เก็บในฐานข้อมูล
+- **session (BR-AU-03):** ไลบรารีให้ผู้ที่ไม่ติ๊ก “จดจำ” ได้ session 24 ชั่วโมงแบบไม่ต่ออายุ และ Server Component ตั้ง cookie ไม่ได้ จึงเพิ่ม
+  - `src/lib/auth/session-policy.ts`: จำกัดทุก session ที่ 30 นาที และเลื่อนอายุ session แบบไม่จดจำเมื่อใช้งานเกิน `updateAge` (5 นาที)
+  - DAL อ่าน session ด้วย `disableRefresh` (ไม่ให้แถวในฐานข้อมูลกับ cookie อายุไม่ตรงกัน)
+  - `SessionKeepAlive` ในหน้าที่ login แล้ว เรียก `/api/auth/get-session` เมื่อเปลี่ยนหน้า/คลิก/พิมพ์ (ไม่เกินนาทีละครั้ง) และพาไปหน้า login เมื่อหมดอายุ
+  - ผล (test ด้วยนาฬิกาจำลอง): ทั้งสองแบบหมดอายุเมื่อไม่ใช้งาน 30 นาที · “จดจำ” = cookie อยู่รอดหลังปิด browser · ไม่จดจำ = cookie หายเมื่อปิด browser
+- ผู้ดูแลคนแรก: ตั้ง `ADMIN_USERNAME` / `ADMIN_NAME` / `ADMIN_PASSWORD` ใน Vercel แล้ว `npm run admin:ensure` ใน build สร้างให้ถ้ายังไม่มี — ไม่มีใครต้องถือรหัสผ่านไว้บนเครื่องหรือใน repo
+- `next build` ผ่านแม้ไม่มี `BETTER_AUTH_SECRET` (ไปพังตอน login) → `npm run env:check` เป็นขั้นแรกของ `vercel-build`
+- CLI ของ Better Auth คือแพ็กเกจ `auth` (`npx auth@latest …`)
