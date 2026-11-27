@@ -6,8 +6,21 @@ import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 
-function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+/** Like Dialog: closes only through its buttons, never on Esc (user request 2026-11-27). */
+function AlertDialog({ onOpenChange, ...props }: AlertDialogPrimitive.Root.Props) {
+  return (
+    <AlertDialogPrimitive.Root
+      data-slot="alert-dialog"
+      onOpenChange={(open, details) => {
+        if (!open && details.reason === "escape-key") {
+          details.cancel()
+          return
+        }
+        onOpenChange?.(open, details)
+      }}
+      {...props}
+    />
+  )
 }
 
 function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {

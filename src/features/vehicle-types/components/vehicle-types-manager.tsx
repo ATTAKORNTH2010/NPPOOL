@@ -65,7 +65,7 @@ function VehicleTypeFormDialog({ row, onClose }: { row?: VehicleTypeRow; onClose
             control={form.control}
             name="code"
             label="รหัส"
-            description="ตัวอักษรอังกฤษหรือตัวเลขสั้น ๆ ไม่ซ้ำ เช่น 4W, 6W, 10W"
+            description="สั้น ๆ ไม่ซ้ำ ใช้ภาษาไทยหรืออังกฤษได้ เช่น 4W, 6W, 6ล้อ"
           />
           <TextField control={form.control} name="name" label="ชื่อประเภทรถ" placeholder="เช่น รถกระบะ 4 ล้อ" />
           <TextField

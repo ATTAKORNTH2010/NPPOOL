@@ -5,7 +5,8 @@
 import type { BetterAuthOptions } from "better-auth";
 import { admin, username } from "better-auth/plugins";
 import { ac, roles } from "./roles";
-import { SESSION_EXPIRES_IN, SESSION_UPDATE_AGE, sessionDatabaseHooks, slideUnrememberedSession } from "./session-policy";
+import { authHooks, type AuthEventSink } from "./hooks";
+import { SESSION_EXPIRES_IN, SESSION_UPDATE_AGE, sessionDatabaseHooks } from "./session-policy";
 
 /** Admins create every account; Better Auth still needs a unique email. */
 export const SYNTHETIC_EMAIL_DOMAIN = "users.nppool.invalid";
@@ -35,7 +36,8 @@ export function baseURL(env: NodeJS.ProcessEnv = process.env): string {
   return host ? `https://${host}` : "http://localhost:3000";
 }
 
-export function buildAuthOptions(env: NodeJS.ProcessEnv = process.env) {
+/** onAuthEvent receives sign-in / sign-out events for the activity log (ADR-0012). */
+export function buildAuthOptions(env: NodeJS.ProcessEnv = process.env, onAuthEvent?: AuthEventSink) {
   return {
     appName: "NP Pool",
     baseURL: baseURL(env),
@@ -54,7 +56,7 @@ export function buildAuthOptions(env: NodeJS.ProcessEnv = process.env) {
     },
     // Same 30-minute rule when "remember me" is unticked (see ./session-policy.ts).
     databaseHooks: sessionDatabaseHooks,
-    hooks: { after: slideUnrememberedSession },
+    hooks: authHooks(onAuthEvent),
     rateLimit: {
       enabled: true,
       // In-memory limits do not work across serverless instances.

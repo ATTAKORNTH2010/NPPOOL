@@ -1,7 +1,7 @@
 import type { Permission } from "@/lib/permissions";
 
 /** Sidebar menu (docs/design/02-screens-and-routes.md section 2). */
-export type NavIcon = "filePlus" | "clipboardList" | "building" | "truck" | "contact" | "mapPinned" | "users" | "tags";
+export type NavIcon = "filePlus" | "clipboardList" | "building" | "truck" | "contact" | "mapPinned" | "users" | "tags" | "activity";
 
 export type NavItem = { title: string; href: string; icon: NavIcon; permission: Permission };
 export type NavGroup = { title: string; items: NavItem[] };
@@ -26,6 +26,9 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "ผู้ดูแลระบบ",
-    items: [{ title: "ผู้ใช้", href: "/admin/users", icon: "users", permission: "user.manage" }],
+    items: [
+      { title: "ผู้ใช้", href: "/admin/users", icon: "users", permission: "user.manage" },
+      { title: "Activity Logs", href: "/admin/activity", icon: "activity", permission: "activity.view" },
+    ],
   },
 ];

@@ -68,10 +68,15 @@ describe("vehicle forms (BR-MD-02, MD-05)", () => {
       name: "รถบรรทุก 6 ล้อ",
       sortOrder: 2,
     });
-    expect(messages(vehicleTypeSchema.safeParse({ code: "6 ล้อ", name: "x", sortOrder: "-1" }))).toEqual([
-      "รหัสใช้ได้เฉพาะ A–Z, 0–9, - และ _",
+    expect(messages(vehicleTypeSchema.safeParse({ code: "6@W", name: "x", sortOrder: "-1" }))).toEqual([
+      "รหัสใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ ตัวเลข ช่องว่าง และ - _ . /",
       "ลำดับต้องเป็นตัวเลข 0–999",
     ]);
+  });
+
+  it("accepts Thai type codes (user request 2026-11-27)", () => {
+    expect(vehicleTypeSchema.parse({ code: " 6  ล้อ ", name: "รถบรรทุก 6 ล้อ", sortOrder: "1" }).code).toBe("6 ล้อ");
+    expect(vehicleTypeSchema.parse({ code: "10ล้อ-พ่วง", name: "รถพ่วง", sortOrder: "3" }).code).toBe("10ล้อ-พ่วง");
   });
 });
 

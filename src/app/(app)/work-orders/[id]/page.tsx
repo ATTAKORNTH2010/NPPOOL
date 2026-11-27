@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,8 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/db/client";
 import { CancelWorkOrderButton } from "@/features/work-orders/components/cancel-work-order";
+import { DeleteWorkOrderButton } from "@/features/work-orders/components/delete-work-orders";
+import { WorkOrderNotice } from "@/features/work-orders/components/work-order-notice";
 import { WorkStatusBadge } from "@/features/work-orders/components/work-status-badge";
-import { getWorkOrder, type WorkOrderDetail } from "@/features/work-orders/service";
+import { getWorkOrder, wasWorkOrderDeleted, type WorkOrderDetail } from "@/features/work-orders/service";
 import { WORK_STATUS } from "@/features/work-orders/statuses";
 import { requirePermission } from "@/lib/dal";
 import { formatDateTimeTh, formatMoney } from "@/lib/format";
@@ -20,7 +22,7 @@ import { hasPermission } from "@/lib/permissions";
 
 export const metadata: Metadata = { title: "ใบงาน" };
 
-/** WO-11, WO-13 · design 02 §3.4 — read only, no save button (F2). */
+/** WO-11..14 · design 02 §3.4 — read only (F2); edit, print, cancel and delete by role. */
 export default function WorkOrderPage({ params }: PageProps<"/work-orders/[id]">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -31,24 +33,51 @@ export default function WorkOrderPage({ params }: PageProps<"/work-orders/[id]">
 
 async function WorkOrderContent({ params }: Pick<PageProps<"/work-orders/[id]">, "params">) {
   const user = await requirePermission("workOrder.view");
-  const { id } = await params;
-  if (!/^\d{1,9}$/.test(id)) notFound();
-  const order = await getWorkOrder(db, Number(id));
-  if (!order) notFound();
+  const { id: raw } = await params;
+  if (!/^\d{1,9}$/.test(raw)) notFound();
+  const id = Number(raw);
+  const order = await getWorkOrder(db, id);
+  if (!order) {
+    if (await wasWorkOrderDeleted(db, id)) return <WorkOrderNotice title="ใบงานนี้ถูกลบแล้ว" />;
+    notFound();
+  }
 
   const cancelled = order.statusCode === WORK_STATUS.CANCELLED;
+  const canEdit = hasPermission(user.role, "workOrder.edit") && !cancelled;
+  const canPrint = hasPermission(user.role, "workOrder.print");
   const canCancel = hasPermission(user.role, "workOrder.cancel") && !cancelled;
+  const canDelete = hasPermission(user.role, "workOrder.delete");
   const canCreate = hasPermission(user.role, "workOrder.create");
+  const edited = order.updatedAt.getTime() - order.createdAt.getTime() > 1000;
+  const history = [
+    `สร้างโดย ${order.createdByName ?? "—"} เมื่อ ${formatDateTimeTh(order.createdAt)}`,
+    edited ? `แก้ไขล่าสุดโดย ${order.updatedByName ?? "—"} เมื่อ ${formatDateTimeTh(order.updatedAt)}` : null,
+  ];
 
   return (
     <>
-      <PageHeader
-        title={`ใบงาน ${order.workOrderNo}`}
-        description={`สร้างโดย ${order.createdByName ?? "—"} เมื่อ ${formatDateTimeTh(order.createdAt)}`}
-      >
+      <PageHeader title={`ใบงาน ${order.workOrderNo}`} description={history.filter(Boolean).join(" · ")}>
         <div className="flex flex-wrap items-center gap-2">
           <WorkStatusBadge code={order.statusCode} name={order.statusName} />
+          {canEdit ? (
+            <Link href={`/work-orders/${order.id}/edit`} className={buttonVariants()}>
+              <Pencil />
+              แก้ไขใบงาน
+            </Link>
+          ) : null}
+          {canPrint ? (
+            <a
+              href={`/work-orders/${order.id}/print`}
+              target="_blank"
+              rel="noopener"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <Printer />
+              พิมพ์ใบสั่งปฏิบัติงาน
+            </a>
+          ) : null}
           {canCancel ? <CancelWorkOrderButton id={order.id} workOrderNo={order.workOrderNo} /> : null}
+          {canDelete ? <DeleteWorkOrderButton id={order.id} workOrderNo={order.workOrderNo} /> : null}
           {canCreate ? (
             <Link href="/work-orders/new" className={buttonVariants({ variant: "outline" })}>
               <Plus />

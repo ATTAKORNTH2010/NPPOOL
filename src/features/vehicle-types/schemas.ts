@@ -1,15 +1,18 @@
 import { z } from "zod";
 import { idSchema, requiredText } from "@/lib/validation";
 
-/** MD-05 (pulled into module 2, D24): code is unique and stored in upper case. */
+/** Thai or English letters, digits, spaces and - _ . / (Thai codes such as "6ล้อ": user request 2026-11-27). */
+const CODE = /^[A-Za-z0-9ก-๛ ._/-]+$/;
+
+/** MD-05 (pulled into module 2, D24): code is unique; English letters are stored in upper case. */
 export const vehicleTypeSchema = z.object({
   code: z
     .string()
     .trim()
     .min(1, "กรุณากรอกรหัสประเภทรถ")
     .max(20, "รหัสยาวได้ไม่เกิน 20 ตัวอักษร")
-    .regex(/^[A-Za-z0-9_-]+$/, "รหัสใช้ได้เฉพาะ A–Z, 0–9, - และ _")
-    .transform((value) => value.toUpperCase()),
+    .regex(CODE, "รหัสใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ ตัวเลข ช่องว่าง และ - _ . /")
+    .transform((value) => value.replace(/\s+/g, " ").toUpperCase()),
   name: requiredText("กรุณากรอกชื่อประเภทรถ", 100),
   sortOrder: z
     .string()

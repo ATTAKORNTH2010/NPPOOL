@@ -46,7 +46,10 @@ function toSessionRef(value: unknown): SessionRef | null {
   return at && !Number.isNaN(at.getTime()) ? { token, expiresAt: at } : null;
 }
 
-export const slideUnrememberedSession = createAuthMiddleware(async (ctx) => {
+/** Context Better Auth passes to a hook (see ./hooks.ts). */
+export type AuthHookContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+
+export async function slideUnrememberedSession(ctx: AuthHookContext): Promise<void> {
   if (ctx.path !== "/get-session") return;
   const session = toSessionRef(ctx.context.session) ?? toSessionRef(ctx.context.returned);
   if (!session) return;
@@ -62,4 +65,4 @@ export const slideUnrememberedSession = createAuthMiddleware(async (ctx) => {
     expiresAt: new Date(now + SESSION_EXPIRES_IN * 1000),
     updatedAt: new Date(now),
   });
-});
+}
