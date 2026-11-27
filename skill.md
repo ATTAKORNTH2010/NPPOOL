@@ -329,3 +329,4 @@ npm run env:check                 # ตรวจว่ามี env ที่จ
 | 2026-11-27 | auto mode ไม่ให้ Claude กดยืนยัน deploy ขึ้น Production และไม่ให้เปิดดูค่าของ env (แม้เป็น Config) — เตรียมหน้าให้แล้วให้ผู้ใช้กดเอง |
 | 2026-11-27 | list ของ Vercel ตัดชื่อ key ให้สั้น (`AD…`) จึงพลาดง่ายเมื่อแก้ key — ตรวจชื่อเต็มจาก DOM/`title` และให้ log ของ build บอกชัดว่าขาดตัวไหน |
 | 2026-11-27 | สคริปต์ bootstrap ที่ล้ม build เมื่อค่าไม่ผ่านนโยบายช่วยให้พบปัญหาเร็ว และไม่ทำให้ Production ล่ม (Vercel ยังใช้ deployment ที่ผ่านล่าสุด) |
+| 2026-11-27 | shadcn Sidebar เลือกกิ่ง desktop/mobile จาก `isMobile` ของ `SidebarProvider` — อย่าวาง `<Sidebar>` ไว้ใน Suspense แยกจาก provider (จอแคบจะ hydrate ไม่ตรง React #418) ให้ Suspense เฉพาะเนื้อหาที่ต้องรอ session · ทดสอบ hydration ด้วยแท็บใหม่ที่จอแคบ เพราะ reload ในแท็บเดิมอาจไม่เกิด |
