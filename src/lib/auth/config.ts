@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import * as schema from "@/db/schema";
 import type { AppDatabase } from "@/db/types";
+import { recordAuthEvents } from "./activity";
 import { buildAuthOptions } from "./options";
 
 /**
@@ -11,7 +12,7 @@ import { buildAuthOptions } from "./options";
  * `nextCookies()` must stay last and is a no-op outside a Next.js request.
  */
 export function createAuth(db: AppDatabase) {
-  const options = buildAuthOptions();
+  const options = buildAuthOptions(process.env, recordAuthEvents(db));
   return betterAuth({
     ...options,
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),

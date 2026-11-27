@@ -2,8 +2,9 @@ import { Truck } from "lucide-react";
 import { SITE } from "@/config/site";
 
 /**
- * Text brand mark. The official NP Pool logo file will replace the icon once
- * the user provides it (it is not copied from the legacy folder).
+ * Compact brand mark for the sidebar. The company logo (./logo.tsx) is a wide
+ * 215×81 banner that does not fit the collapsed icon rail, so the sidebar keeps
+ * this square icon; the login page and the printed job order show the logo.
  */
 export function Brand() {
   return (

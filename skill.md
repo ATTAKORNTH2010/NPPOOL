@@ -286,6 +286,7 @@ npm run env:check                 # ตรวจว่ามี env ที่จ
 
 - Repo `ATTAKORNTH2010/NPPOOL` เป็น **public** — `.env*` ต้องอยู่ใน `.gitignore` และความลับเก็บบน Vercel เท่านั้น
 - ตรวจ visibility ของ repo ทุกครั้งก่อนให้ push งานเดิมหรือข้อมูลขึ้น GitHub
+- การอัปโหลดไฟล์ผ่านหน้าเว็บ GitHub ไม่ผ่าน `.gitignore` — ถ้าไฟล์จริงหลุดขึ้น branch สาธารณะ: force-push กลับ commit ก่อนหน้าด้วย `--force-with-lease=<ref>:<sha เดิม>` (ต้องได้รับอนุมัติ) · commit เดิมยังเปิดได้ด้วยเลข commit และเห็นใน event ของ repo → เจ้าของ repo แจ้ง GitHub Support · **ห้ามเขียนเลข commit นั้นลงเอกสารใน repo**
 
 ## 7. วิธีทำงานกับผู้ใช้ (Workflow)
 
@@ -334,3 +335,12 @@ npm run env:check                 # ตรวจว่ามี env ที่จ
 | 2026-11-27 | Zod v4: helper แบบ generic (`withId<S extends ZodObject>`) ทำให้ type ของฟิลด์หาย → ใช้ `schema.extend({...})` ตรง ๆ · ฟอร์มที่ schema มี transform: ส่งค่าดิบ (`getValues()`) ให้ Server Action แล้วให้ server parse เอง — ป้องกัน transform ซ้ำ 2 รอบ (เช่น ข้อความ → ตัวเลข) |
 | 2026-11-27 | Cache Components: `usePathname()` ใน Client Component ที่อยู่นอก Suspense ใช้ได้กับ route คงที่ แต่ทำให้ build ของ route แบบ `[id]` ล้ม (pathname = ข้อมูลของ request) — ห่อ component ที่อ่าน URL ด้วย Suspense ตั้งแต่แรก (แม้มัน render `null`) |
 | 2026-11-27 | react-day-picker ไม่มีปี พ.ศ. ในตัว — `locale={th}` + `formatters.formatCaption` (ปี+543) · เก็บค่าวันเป็น `YYYY-MM-DD` และแสดงจาก string ตรง ๆ เพื่อไม่ให้ time zone ของ browser เลื่อนวัน · Base UI Combobox ใช้ `items` + `itemToStringLabel` + `isItemEqualToValue` และ `ComboboxList` รับ render function |
+| 2026-11-27 | Next.js 16 + Cache Components เก็บหน้าที่เคยเปิดไว้ด้วย `<Activity>` (สูงสุด 3 หน้า) — ฟอร์มจึงค้างค่าเดิมเมื่อกลับมา · ฟอร์มที่ต้องว่างทุกครั้งให้ `reset()` ใน cleanup ของ `useLayoutEffect` (ดู `node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md`) · หน้าแก้ไขใส่ `key` เป็นเวอร์ชันของข้อมูล |
+| 2026-11-27 | Base UI Dialog: `disablePointerDismissal` กันคลิกนอกกล่อง · Esc ต้องกันใน `onOpenChange` ด้วย `details.reason === "escape-key"` → `details.cancel()` · AlertDialog ไม่ปิดเมื่อคลิกนอกกล่องอยู่แล้ว แต่ปิดด้วย Esc |
+| 2026-11-27 | ไฟล์ “ตัวอย่าง” ที่ผู้ใช้วางใน repo อาจมีข้อมูลจริง (ชื่อลูกค้า ชื่อ+เบอร์ผู้ติดต่อ) — เปิดดูก่อน commit เสมอ · เก็บแค่ README/ไฟล์ปิดข้อมูล และกันด้วย `.gitignore` แบบ allow-list |
+| 2026-11-27 | Better Auth: hook `after` ทำงานแม้ endpoint โยน error (`ctx.context.returned` เป็น `APIError`) · login สำเร็จดูจาก `ctx.context.newSession` · ชื่อผู้ใช้รูปแบบผิด (เช่นมีตัวใหญ่หรือ `-`) ได้ 422 ไม่ใช่ 401 · รวมหลาย hook เป็น middleware เดียวโดยแยก handler เป็นฟังก์ชันธรรมดา (type ของ ctx: `Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]`) |
+| 2026-11-27 | ค้นหาด้วย ILIKE ต้อง escape `\` `%` `_` ของข้อความผู้ใช้ ไม่งั้น `%` กลายเป็น wildcard · ช่วงวันที่ให้แปลงเป็น [00:00 วันแรก, 00:00 วันถัดจากวันสุดท้าย) ตามเวลาไทย |
+| 2026-11-27 | Bash tool: heredoc/`node -e` ที่มี backtick, `${}` หรือ regex `\d` พังง่าย (ข้อความหาย คอมเมนต์โดนแทน) — ไฟล์ที่มีอักขระพวกนี้ให้ใช้ Write/Edit แทน และตรวจผลทุกครั้ง |
+| 2026-11-27 | ESLint ของ Next.js ห้ามตั้งชื่อตัวแปร `module` (`no-assign-module-variable`) · ห้าม `window.location.assign` ไปหน้าภายใน ให้ใช้ `router.push` |
+| 2026-11-27 | `next/image` ใน Next.js 16: `priority` เลิกใช้แล้ว ใช้ `loading="eager"` (หรือ `preload`) · หน้าพิมพ์ต้องรอทั้ง `document.fonts.ready` และ `img.decode()` ก่อน `window.print()` ไม่งั้นโลโก้/ฟอนต์อาจหายจาก PDF · รูปเล็กใช้ `unoptimized` ได้ ไม่เปลืองโควตา Image Optimization |
+| 2026-11-27 | ลบข้อมูลตามอายุโดยไม่ต้องมี cron: ทำใน `after()` หลังเขียน log อย่างมากชั่วโมงละครั้งต่อ instance (ตัวแปรระดับ module) · คำนวณ “3 เดือนตามปฏิทิน” ใน Postgres (`make_interval(months => 3)`) แทนการบวกเดือนเองใน JS |

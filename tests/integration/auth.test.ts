@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { users } from "@/db/schema";
+import { activityLogs, users } from "@/db/schema";
 import { createAuth, type Auth } from "@/lib/auth/config";
 import { syntheticEmail } from "@/lib/auth/options";
 import { createTestDb, type TestDb } from "./test-db";
@@ -64,5 +64,59 @@ describe("Better Auth setup", () => {
     await db.update(users).set({ banned: true }).where(eq(users.id, user!.id));
     await expect(auth.api.signInUsername({ body: { username: "maker01", password } })).rejects.toThrow();
     await db.update(users).set({ banned: false }).where(eq(users.id, user!.id));
+  });
+});
+
+describe("activity log of sign-in and sign-out (ADR-0012)", () => {
+  const ORIGIN = "http://localhost:3000";
+  const post = (path: string, body: unknown, cookie?: string) =>
+    auth.handler(
+      new Request(`${ORIGIN}/api/auth${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: ORIGIN,
+          "user-agent": "vitest",
+          "x-forwarded-for": "203.0.113.7, 10.0.0.1",
+          ...(cookie ? { cookie } : {}),
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  it("records sign-in, both kinds of failed sign-in and sign-out, without storing unknown usernames", async () => {
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.username, "maker01"));
+    await db.delete(activityLogs);
+
+    const signedIn = await post("/sign-in/username", { username: "maker01", password });
+    expect(signedIn.status).toBe(200);
+    const cookie = signedIn.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    expect((await post("/sign-in/username", { username: "maker01", password: "Wrong-Pass1" })).status).toBe(401);
+    // Not a valid username at all (422) — as when someone types a password into the username box.
+    expect((await post("/sign-in/username", { username: "Secret-Typed-1", password: "x" })).status).toBe(422);
+    expect((await post("/sign-out", {}, cookie)).status).toBe(200);
+
+    const rows = await db
+      .select({
+        userId: activityLogs.userId,
+        module: activityLogs.module,
+        action: activityLogs.action,
+        detail: activityLogs.detail,
+        ipAddress: activityLogs.ipAddress,
+        userAgent: activityLogs.userAgent,
+      })
+      .from(activityLogs)
+      .orderBy(asc(activityLogs.id));
+    const meta = { module: "auth", ipAddress: "203.0.113.7", userAgent: "vitest" };
+    expect(rows).toEqual([
+      { ...meta, userId: user!.id, action: "login", detail: null },
+      { ...meta, userId: user!.id, action: "loginFailed", detail: "รหัสผ่านไม่ถูกต้อง หรือบัญชีถูกระงับ" },
+      { ...meta, userId: null, action: "loginFailed", detail: "ไม่พบชื่อผู้ใช้ที่กรอก" },
+      { ...meta, userId: user!.id, action: "logout", detail: null },
+    ]);
+    expect(JSON.stringify(rows)).not.toContain("Secret-Typed-1");
   });
 });

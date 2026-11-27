@@ -4,20 +4,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleAlert, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch, type Control, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { applyFieldErrors } from "@/components/form/apply-field-errors";
+import { AutocompleteField, type Suggestion } from "@/components/form/autocomplete-field";
 import { ComboboxField, type ComboboxOption } from "@/components/form/combobox-field";
 import { DateTimeField } from "@/components/form/date-time-field";
 import { TextField } from "@/components/form/text-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createWorkOrderAction } from "../actions";
+import { formatMoney } from "@/lib/format";
+import { createWorkOrderAction, updateWorkOrderAction } from "../actions";
 import {
   EMPTY_VEHICLE_LINE,
   EMPTY_WORK_ORDER,
@@ -25,7 +27,7 @@ import {
   type WorkOrderFormValues,
   type WorkOrderInput,
 } from "../schemas";
-import type { WorkOrderFormOptions } from "../service";
+import type { WorkOrderEditData, WorkOrderFormOptions } from "../service";
 
 type Form = UseFormReturn<WorkOrderFormValues, unknown, WorkOrderInput>;
 type FormControl = Control<WorkOrderFormValues, unknown, WorkOrderInput>;
@@ -37,17 +39,31 @@ const COUNT_ITEMS = Array.from({ length: 16 }, (_, n) => ({ value: String(n), la
 
 const unique = (values: string[]) => [...new Set(values)];
 
-/** WO-01..09 · design 02 §3.3: five sections, saved in one transaction. */
-export function WorkOrderForm({ options }: { options: WorkOrderFormOptions }) {
+/**
+ * WO-01..09 · design 02 §3.3: five sections, saved in one transaction.
+ * With `edit`, the same form changes an existing work order (WO-14).
+ */
+export function WorkOrderForm({ options, edit }: { options: WorkOrderFormOptions; edit?: WorkOrderEditData }) {
   const router = useRouter();
   const form = useForm<WorkOrderFormValues, unknown, WorkOrderInput>({
     resolver: zodResolver(workOrderSchema),
-    defaultValues: EMPTY_WORK_ORDER,
+    defaultValues: edit?.values ?? EMPTY_WORK_ORDER,
   });
   const lines = useFieldArray({ control: form.control, name: "vehicles" });
   const [summary, setSummary] = useState<string | null>(null);
   const submitting = form.formState.isSubmitting;
   const ids = { customer: useId(), status: useId(), receive: useId(), delivery: useId() };
+
+  // Next.js keeps visited pages alive (Activity). Start fresh every time the
+  // user comes back: no leftovers from the last work order or an abandoned
+  // draft (user request 2026-11-27).
+  const { reset } = form;
+  useLayoutEffect(() => {
+    return () => {
+      reset();
+      setSummary(null);
+    };
+  }, [reset]);
 
   const customerOptions: ComboboxOption[] = options.customers.map((c) => ({ value: String(c.id), label: c.name }));
   const statusItems = options.statuses.map((s) => ({ value: String(s.code), label: s.name }));
@@ -56,7 +72,10 @@ export function WorkOrderForm({ options }: { options: WorkOrderFormOptions }) {
   async function onValid() {
     setSummary(null);
     // Raw values: the Server Action validates them again with the same schema.
-    const result = await createWorkOrderAction(form.getValues());
+    const values = form.getValues();
+    const result = edit
+      ? await updateWorkOrderAction({ id: edit.id, version: edit.version }, values)
+      : await createWorkOrderAction(values);
     if (!result.ok) {
       applyFieldErrors(result, form.setError);
       setSummary(result.message);
@@ -64,7 +83,9 @@ export function WorkOrderForm({ options }: { options: WorkOrderFormOptions }) {
       return;
     }
     toast.success(result.message);
-    if (result.data) router.push(`/work-orders/${result.data.id}`);
+    if (!result.data) return;
+    form.reset();
+    router.push(`/work-orders/${result.data.id}`);
   }
 
   return (
@@ -212,12 +233,12 @@ export function WorkOrderForm({ options }: { options: WorkOrderFormOptions }) {
       </Section>
 
       <div className="flex justify-end gap-2">
-        <Link href="/work-orders" className={buttonVariants({ variant: "outline" })}>
+        <Link href={edit ? `/work-orders/${edit.id}` : "/work-orders"} className={buttonVariants({ variant: "outline" })}>
           ยกเลิก
         </Link>
         <Button type="submit" disabled={submitting}>
           {submitting ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
-          บันทึกใบงาน
+          {edit ? "บันทึกการแก้ไข" : "บันทึกใบงาน"}
         </Button>
       </div>
     </form>
@@ -285,44 +306,49 @@ function CountField({
 }
 
 /**
- * BR-WO-05: places come from the route list (free text still allowed); picking
- * one side fills the other with its first pair when that side is still empty.
+ * BR-WO-05 + WO-18 (user request 2026-11-27): the pickup list comes from the
+ * route list; once a known pickup is chosen, the drop-off list shows only the
+ * places paired with it, each with its price, and picking one fills ค่าขนส่ง
+ * (still editable). Free text stays allowed on both sides.
  */
 function PlacesSection({ form, options }: { form: Form; options: WorkOrderFormOptions }) {
-  const pickupList = useId();
-  const dropoffList = useId();
-  const pickups = unique(options.routePairs.map((pair) => pair.pickup));
-  const dropoffs = unique(options.routePairs.map((pair) => pair.dropoff));
+  const pickup = useWatch({ control: form.control, name: "pickupLocation" }).trim();
 
-  function pair(side: "pickup" | "dropoff", value: string) {
-    const other = side === "pickup" ? "dropoffLocation" : "pickupLocation";
-    if (form.getValues(other).trim() !== "") return;
-    const match = options.routePairs.find((p) => (side === "pickup" ? p.pickup : p.dropoff) === value.trim());
-    if (match) form.setValue(other, side === "pickup" ? match.dropoff : match.pickup, { shouldDirty: true });
+  const routeCounts = new Map<string, number>();
+  for (const pair of options.routePairs) routeCounts.set(pair.pickup, (routeCounts.get(pair.pickup) ?? 0) + 1);
+  const pickupSuggestions: Suggestion[] = [...routeCounts].map(([place, routes]) => ({
+    value: place,
+    hint: `${routes} ปลายทาง`,
+  }));
+
+  const paired = options.routePairs.filter((pair) => pair.pickup === pickup);
+  const dropoffSuggestions: Suggestion[] =
+    paired.length > 0
+      ? paired.map((pair) => ({ value: pair.dropoff, hint: `${formatMoney(pair.price)} บาท` }))
+      : unique(options.routePairs.map((pair) => pair.dropoff)).map((place) => ({ value: place }));
+
+  function pickDropoff(dropoff: string) {
+    const route = paired.find((pair) => pair.dropoff === dropoff);
+    if (route) form.setValue("transportFee", route.price, { shouldDirty: true, shouldValidate: true });
   }
 
   return (
-    <>
-      <datalist id={pickupList}>
-        {pickups.map((place) => (
-          <option key={place} value={place} />
-        ))}
-      </datalist>
-      <datalist id={dropoffList}>
-        {dropoffs.map((place) => (
-          <option key={place} value={place} />
-        ))}
-      </datalist>
-      <div className="grid gap-4 md:grid-cols-3">
-        <PlaceField form={form} name="pickupLocation" label="สถานที่รับ" list={pickupList} onPick={(v) => pair("pickup", v)} />
-        <TextField control={form.control} name="pickupContactName" label="ชื่อผู้ติดต่อ (ฝั่งรับ)" />
-        <TextField control={form.control} name="pickupContactPhone" label="เบอร์โทร (ฝั่งรับ)" type="tel" inputMode="tel" />
-        <PlaceField form={form} name="dropoffLocation" label="สถานที่ส่ง" list={dropoffList} onPick={(v) => pair("dropoff", v)} />
-        <TextField control={form.control} name="dropoffContactName" label="ชื่อผู้ติดต่อ (ฝั่งส่ง)" />
-        <TextField control={form.control} name="dropoffContactPhone" label="เบอร์โทร (ฝั่งส่ง)" type="tel" inputMode="tel" />
-        <MoneyField control={form.control} name="transportFee" label="ค่าขนส่ง (บาท)" />
-      </div>
-    </>
+    <div className="grid gap-4 md:grid-cols-3">
+      <PlaceField form={form} name="pickupLocation" label="สถานที่รับ" suggestions={pickupSuggestions} />
+      <TextField control={form.control} name="pickupContactName" label="ชื่อผู้ติดต่อ (ฝั่งรับ)" />
+      <TextField control={form.control} name="pickupContactPhone" label="เบอร์โทร (ฝั่งรับ)" type="tel" inputMode="tel" />
+      <PlaceField
+        form={form}
+        name="dropoffLocation"
+        label="สถานที่ส่ง"
+        suggestions={dropoffSuggestions}
+        onPick={pickDropoff}
+        description={paired.length > 0 ? `แสดงเฉพาะปลายทางของ “${pickup}” พร้อมราคา` : undefined}
+      />
+      <TextField control={form.control} name="dropoffContactName" label="ชื่อผู้ติดต่อ (ฝั่งส่ง)" />
+      <TextField control={form.control} name="dropoffContactPhone" label="เบอร์โทร (ฝั่งส่ง)" type="tel" inputMode="tel" />
+      <MoneyField control={form.control} name="transportFee" label="ค่าขนส่ง (บาท)" />
+    </div>
   );
 }
 
@@ -330,14 +356,16 @@ function PlaceField({
   form,
   name,
   label,
-  list,
+  suggestions,
   onPick,
+  description,
 }: {
   form: Form;
   name: "pickupLocation" | "dropoffLocation";
   label: string;
-  list: string;
-  onPick: (value: string) => void;
+  suggestions: Suggestion[];
+  onPick?: (value: string) => void;
+  description?: string;
 }) {
   const id = useId();
   return (
@@ -347,18 +375,16 @@ function PlaceField({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Input
-            {...field}
+          <AutocompleteField
             id={id}
-            list={list}
-            autoComplete="off"
-            placeholder="พิมพ์หรือเลือกจากรายการ"
-            aria-invalid={fieldState.invalid}
-            onChange={(event) => {
-              field.onChange(event.target.value);
-              onPick(event.target.value);
-            }}
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            onPick={(suggestion) => onPick?.(suggestion.value)}
+            suggestions={suggestions}
+            invalid={fieldState.invalid}
           />
+          {description ? <FieldDescription>{description}</FieldDescription> : null}
           <FieldError errors={[fieldState.error]} />
         </Field>
       )}

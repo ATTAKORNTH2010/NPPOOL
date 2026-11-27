@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ActivityTracker } from "@/components/layout/activity-tracker";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SessionKeepAlive } from "@/components/layout/session-keep-alive";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* usePathname() is request data on dynamic routes such as /work-orders/[id]. */}
       <Suspense fallback={null}>
         <SessionKeepAlive />
+        <ActivityTracker />
       </Suspense>
     </SidebarProvider>
   );

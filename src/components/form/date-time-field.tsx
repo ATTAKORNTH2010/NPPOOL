@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatYmdTh } from "@/lib/date-range";
 
 export type DateTimeValue = { date: string; time: string };
 
@@ -18,12 +19,6 @@ function toYmd(date: Date): string {
 function fromYmd(value: string): Date | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : undefined;
-}
-
-/** "2026-11-27" → "27/11/2569": straight from the picked day, so the browser's time zone cannot shift it. */
-function formatYmdTh(value: string): string {
-  const [year, month, day] = value.split("-");
-  return `${day}/${month}/${Number(year) + 543}`;
 }
 
 /** Typing "830", "0830" or "8:30" becomes "08:30". */

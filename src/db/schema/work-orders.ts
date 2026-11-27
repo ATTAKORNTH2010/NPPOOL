@@ -67,6 +67,9 @@ export const workOrders = pgTable(
     extraWorkerFee: money("extra_worker_fee"),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancelledBy: text("cancelled_by").references(() => users.id),
+    // "ลบใบงาน" hides the row everywhere but keeps it (ADR-0010 addendum, 2026-11-27).
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: text("deleted_by").references(() => users.id),
     ...auditColumns(),
     // A work order is always created and last changed by a signed-in user.
     createdBy: text("created_by")
@@ -89,6 +92,7 @@ export const workOrders = pgTable(
     ),
     // Status 2 (ยกเลิก) and cancelled_at always go together (ADR-0010).
     check("work_orders_cancelled_check", sql`(${t.statusCode} = 2) = (${t.cancelledAt} is not null)`),
+    check("work_orders_deleted_check", sql`(${t.deletedAt} is null) = (${t.deletedBy} is null)`),
     index("work_orders_customer_id_idx").on(t.customerId),
     index("work_orders_status_code_idx").on(t.statusCode),
     index("work_orders_receive_at_idx").on(t.receiveAt),

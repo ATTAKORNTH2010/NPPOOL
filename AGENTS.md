@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## NP Pool project rules
 
 - Read `plan.md`, `Roadmap.md` and `skill.md` first. Work one phase at a time and stop at every ⏸ approval gate.
-- The legacy system at `C:\Projects\NPPool` is read-only reference: never modify it and never copy its files into this repo.
+- The legacy system at `C:\Projects\NPPool` is read-only reference: never modify it and never copy its files into this repo. The one owner-approved exception is the company logo (`src/assets/brand/np-pool-logo.png`, Roadmap B8/D33).
 - Public repo: never commit secrets, connection strings, customer data or personal data. Record only which file holds a secret.
 - Cache Components is on: anything that reads the session (`src/lib/dal.ts`) must sit inside `<Suspense>`, and prerendered components must not call `Math.random()` or `Date.now()` (shadcn's `SidebarMenuSkeleton` does).
 - Authorization is deny by default (ADR-0009): every page and Server Action calls `requireUser()` / `requirePermission()`; `src/proxy.ts` is only an optimistic cookie check.

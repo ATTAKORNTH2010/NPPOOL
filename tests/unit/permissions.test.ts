@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { hasPermission, isRole, PERMISSIONS, ROLES, type Permission } from "@/lib/permissions";
 
-// Role matrix from docs/rea/02-domain-model.md section 6.2 (confirmed 2026-11-26).
+// Role matrix from docs/rea/02-domain-model.md section 6.2 (confirmed 2026-11-26),
+// plus edit / delete / export / activity log added on 2026-11-27.
 const expected: Record<Permission, Record<(typeof ROLES)[number], boolean>> = {
   "workOrder.view": { admin: true, maker: true, accounting: true },
   "workOrder.create": { admin: true, maker: true, accounting: false },
+  "workOrder.edit": { admin: true, maker: true, accounting: false },
   "workOrder.cancel": { admin: true, maker: true, accounting: false },
+  "workOrder.delete": { admin: true, maker: true, accounting: false },
   "workOrder.print": { admin: true, maker: true, accounting: true },
+  "workOrder.export": { admin: true, maker: true, accounting: true },
   "masterData.manage": { admin: true, maker: false, accounting: false },
   "user.manage": { admin: true, maker: false, accounting: false },
+  "activity.view": { admin: true, maker: false, accounting: false },
 };
 
 describe("permissions", () => {

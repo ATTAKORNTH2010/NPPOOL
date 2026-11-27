@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Brand } from "@/components/layout/brand";
+import { Logo } from "@/components/layout/logo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SITE } from "@/config/site";
 import { getCurrentUser } from "@/lib/dal";
@@ -17,9 +17,7 @@ export default function LoginPage() {
         <RedirectIfSignedIn />
       </Suspense>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <div className="flex items-center gap-2 self-center">
-          <Brand />
-        </div>
+        <Logo className="self-center" />
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">เข้าสู่ระบบ</CardTitle>

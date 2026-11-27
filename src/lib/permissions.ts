@@ -21,14 +21,22 @@ export const PERMISSIONS = {
   "workOrder.view": ["admin", "maker", "accounting"],
   /** สร้างใบงาน */
   "workOrder.create": ["admin", "maker"],
-  /** ยกเลิกใบงาน (แทนการลบ — ADR-0010) */
+  /** แก้ไขใบงานที่ยังไม่ยกเลิก (WO-14 — ผู้ใช้ขอ 2026-11-27) */
+  "workOrder.edit": ["admin", "maker"],
+  /** ยกเลิกใบงาน — ยังแสดงในรายการพร้อมสถานะ “ยกเลิก” (ADR-0010) */
   "workOrder.cancel": ["admin", "maker"],
+  /** ลบใบงาน = ซ่อนจากทุกหน้าจอ แต่ข้อมูลยังอยู่ (ADR-0010 ส่วนเพิ่มเติม 2026-11-27) */
+  "workOrder.delete": ["admin", "maker"],
   /** พิมพ์ใบสั่งปฏิบัติงาน */
   "workOrder.print": ["admin", "maker", "accounting"],
+  /** ส่งออกรายการใบงานที่ค้นหาเป็นไฟล์ Excel */
+  "workOrder.export": ["admin", "maker", "accounting"],
   /** เพิ่ม / แก้ / ปิดใช้งาน ข้อมูลพื้นฐาน */
   "masterData.manage": ["admin"],
   /** จัดการผู้ใช้และบทบาท */
   "user.manage": ["admin"],
+  /** ดู Activity Logs ของผู้ใช้ทุกคน (ADR-0012) */
+  "activity.view": ["admin"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

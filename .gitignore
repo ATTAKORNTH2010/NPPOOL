@@ -45,3 +45,9 @@ next-env.d.ts
 
 # local Claude Code session files
 /.claude/
+
+# docs/PrintForm: the public repo keeps only the README and anonymised samples
+# named *.sample.* — real print-outs (customer and personal data) stay local.
+/docs/PrintForm/*
+!/docs/PrintForm/README.md
+!/docs/PrintForm/*.sample.*

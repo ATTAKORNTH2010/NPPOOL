@@ -130,7 +130,8 @@ erDiagram
 | `extra_workers` | smallint | ไม่ | default 0 · check 0–15 | จำนวนคน (เดิม `Overhead`) |
 | `extra_worker_fee` | numeric(14,2) | ได้ | check ≥ 0 | ค่าแรงคน |
 | `cancelled_at`, `cancelled_by` | timestamptz, text | ได้ | FK `cancelled_by` → `users` · check: `(status_code = 2) = (cancelled_at is not null)` | ยกเลิก = สถานะ 2 เท่านั้น (ADR-0010) |
-| `created_at`, `created_by`, `updated_at`, `updated_by` | | ไม่ | audit มาตรฐาน | |
+| `deleted_at`, `deleted_by` | timestamptz, text | ได้ | FK `deleted_by` → `users` · check: มีทั้งคู่หรือไม่มีทั้งคู่ | “ลบใบงาน” = ซ่อนจากทุกหน้าจอ (ADR-0010 ส่วนเพิ่มเติม, migration `0001`) |
+| `created_at`, `created_by`, `updated_at`, `updated_by` | | ไม่ | audit มาตรฐาน | `updated_at` ใช้กันแก้ทับกันในหน้าแก้ไข (D26) |
 
 ตอนสร้างใบงาน dropdown สถานะ**ไม่มี “ยกเลิก”** (ยกเลิกผ่านปุ่มเท่านั้น เพื่อให้ check ข้างบนเป็นจริงเสมอ) — ระบบเดิมเลือกได้ทั้ง 8 สถานะ
 
@@ -165,6 +166,19 @@ erDiagram
 | `work_statuses` | `code` smallint PK · `name` text not null · `sort_order` smallint | seed 8 ค่าจากฐานข้อมูลเดิม (หัวข้อ 6) |
 | `work_order_counters` | `period` text PK (ปี พ.ศ. 4 หลัก + เดือน 2 หลัก) · `last_no` integer not null check ≥ 1 | 1 แถวต่อเดือน (ADR-0007) |
 
+### 3.4.1 `activity_logs` — การใช้งานของผู้ใช้ (ADR-0012, migration `0001`)
+
+| คอลัมน์ | ชนิด | Null | ข้อจำกัด | หมายเหตุ |
+|---|---|---|---|---|
+| `id` | integer identity | ไม่ | PK | |
+| `occurred_at` | timestamptz | ไม่ | default now() | |
+| `user_id` | text | ได้ | FK → `users` on delete set null | ว่างเฉพาะ login ไม่สำเร็จด้วยชื่อที่ไม่มีในระบบ |
+| `module`, `action` | text | ไม่ | ค่าจาก `src/features/activity/catalog.ts` | ฟังก์ชัน + การกระทำ |
+| `entity_id`, `detail`, `path` | text | ได้ | ตัดความยาวในแอป | รายละเอียดภาษาไทยสั้น ๆ |
+| `ip_address`, `user_agent` | text | ได้ | | ข้อมูลส่วนบุคคล — Admin ดูได้เท่านั้น |
+
+index: `occurred_at` · (`user_id`, `occurred_at`) · (`module`, `occurred_at`)
+
 ### 3.5 ตารางของ Better Auth
 
 สร้างด้วย CLI ของ Better Auth แล้วตั้งชื่อเป็นพหูพจน์ `snake_case` ให้เข้ากับตารางอื่น (`users` แทน `user` ซึ่งเป็นคำสงวนของ Postgres) — ยืนยันวิธีตั้งชื่อตอนขั้นที่ 4 (ADR-0004)
@@ -181,7 +195,7 @@ erDiagram
 
 | ตาราง | Index | ใช้กับ |
 |---|---|---|
-| `work_orders` | `customer_id` · `status_code` · `receive_at` | กรองในหลัง MVP (WO-16) · เช็กก่อนลบผู้ว่าจ้าง |
+| `work_orders` | `customer_id` · `status_code` · `receive_at` | การค้นหา (WO-16) · เช็กก่อนลบผู้ว่าจ้าง · ค้นหาข้อความใช้ ILIKE “มีคำนี้” (ข้อมูลไม่กี่หมื่นแถว ยังไม่ต้องมี trigram index) |
 | `work_order_vehicles` | `driver_id` · `vehicle_id` · `vehicle_type_id` | เช็ก “ถูกใช้ในใบงานแล้ว” ก่อนลบข้อมูลพื้นฐาน |
 
 รายการใบงานเรียง `id desc` ใช้ PK ได้เลย

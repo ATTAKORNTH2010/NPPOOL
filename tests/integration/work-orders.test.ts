@@ -8,6 +8,7 @@ import {
   workOrderSchema,
   type WorkOrderFormValues,
 } from "@/features/work-orders/schemas";
+import { EMPTY_WORK_ORDER_FILTERS } from "@/features/work-orders/filters";
 import * as service from "@/features/work-orders/service";
 import { WORK_STATUS } from "@/features/work-orders/statuses";
 import { RuleError } from "@/lib/action-result";
@@ -85,7 +86,7 @@ describe("form options", () => {
     expect(options.customers.map((c) => c.name)).toEqual(["บริษัท ทดสอบ จำกัด"]);
     expect(options.statuses.some((s) => s.code === WORK_STATUS.CANCELLED)).toBe(false);
     expect(options.drivers).toEqual([{ id: ids.driver, name: "สมชาย ขับดี", phone: "089-111-2222" }]);
-    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B" }]);
+    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", price: "3500.00" }]);
   });
 });
 
@@ -138,7 +139,7 @@ describe("listing, viewing and cancelling (WO-10, 11, 13)", () => {
     const twoVehicles = await create(
       form({ vehicles: [...form().vehicles, { ...EMPTY_VEHICLE_LINE, dimensions: "2x2x2 ม." }] }),
     );
-    const { rows, page, pageCount, total } = await service.listWorkOrders(db, 99);
+    const { rows, page, pageCount, total } = await service.listWorkOrders(db, EMPTY_WORK_ORDER_FILTERS, 99);
     expect({ page, pageCount }).toEqual({ page: 1, pageCount: 1 });
     expect(rows).toHaveLength(total);
     expect(rows[0]).toMatchObject({
@@ -151,7 +152,7 @@ describe("listing, viewing and cancelling (WO-10, 11, 13)", () => {
   });
 
   it("shows a work order with names instead of ids", async () => {
-    const [latest] = (await service.listWorkOrders(db, 1)).rows;
+    const [latest] = (await service.listWorkOrders(db, EMPTY_WORK_ORDER_FILTERS, 1)).rows;
     const detail = await service.getWorkOrder(db, latest!.id);
     expect(detail).toMatchObject({ createdByName: "สมหญิง ผู้ทำใบงาน", pickupLocation: "คลัง A" });
     expect(detail?.vehicles.map((line) => [line.lineNo, line.driverName, line.plateNo])).toEqual([
@@ -162,7 +163,7 @@ describe("listing, viewing and cancelling (WO-10, 11, 13)", () => {
   });
 
   it("cancels once, records who and when, and keeps the work order", async () => {
-    const [latest] = (await service.listWorkOrders(db, 1)).rows;
+    const [latest] = (await service.listWorkOrders(db, EMPTY_WORK_ORDER_FILTERS, 1)).rows;
     const at = new Date("2026-11-27T05:00:00Z");
     await service.cancelWorkOrder(db, actor, latest!.id, at);
 
