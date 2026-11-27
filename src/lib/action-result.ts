@@ -2,8 +2,8 @@
  * What every Server Action returns. Messages are Thai and safe to show;
  * internal errors never reach the user (design 02, section 4).
  */
-export type ActionResult =
-  | { ok: true; message: string }
+export type ActionResult<T = void> =
+  | { ok: true; message: string; data?: T }
   | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
 
 export const GENERIC_ERROR = "ทำรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";

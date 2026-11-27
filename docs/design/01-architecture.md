@@ -127,5 +127,5 @@ flowchart LR
 1. ✅ `DATABASE_URL` (pooled) / `DATABASE_URL_UNPOOLED` (direct) · branch ต่อ Preview เปิดได้ที่การเชื่อม project (หัวข้อ 7)
 2. ✅ `pg` Pool ระดับ module + `attachDatabasePool(pool)` + `drizzle({ client: pool })` (`src/db/client.ts`)
 3. ✅ Better Auth: `createUser` + `data.username` และอีเมลสมมติ ผ่าน integration test (ADR-0004 หัวข้อผลตรวจ)
-4. ปฏิทินเลือกวันของ shadcn/ui (react-day-picker 10) แสดงปี พ.ศ. ได้อย่างไร (ADR-0008)
+4. ✅ ปฏิทินเลือกวันของ shadcn/ui (react-day-picker 10) แสดงปี พ.ศ. ด้วย `formatCaption` + locale ไทย (ADR-0008 ผลตรวจ)
 5. หน้าพิมพ์: ผลการพิมพ์ A4 บน Chrome/Edge และชื่อไฟล์เมื่อบันทึกเป็น PDF (ADR-0005)
