@@ -11,8 +11,8 @@
 | 1 | สำรวจและทำบัญชีรายการ (Discovery & Inventory) | ✅ เสร็จ — [docs/rea/01-inventory.md](docs/rea/01-inventory.md) + คำถามค้าง 28 ข้อ (ตอบแล้ว 3) + ผลฐานข้อมูลจริง | ✅ อนุมัติ (2026-11-26) |
 | 2 | ถอดแบบระบบเดิม (Analysis) | ✅ เสร็จ — [02-domain-model](docs/rea/02-domain-model.md) · [03-feature-parity](docs/rea/03-feature-parity.md) · [04-business-rules](docs/rea/04-business-rules.md) | ✅ ยืนยันการถอดแบบ + MVP 25 รายการ (2026-11-26) |
 | 3 | ออกแบบระบบใหม่ (Target Design) | ✅ เสร็จ — [docs/design](docs/design/01-architecture.md) (3 ไฟล์) + [ADR 11 ฉบับ](docs/adr/README.md) | ✅ อนุมัติแบบ + เลือกวิธีพิมพ์ A (2026-11-27) |
-| 4 | วางรากฐานโปรเจกต์ (Foundation) | 🟨 โค้ด + test + CI + runbook พร้อม — รอผู้ใช้ตั้งค่า Vercel + Neon ตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) เพื่อ Preview แรก | ✅ อนุมัติให้เริ่ม (2026-11-27) |
-| 5 | สร้างฟีเจอร์ตาม Parity Matrix (Rebuild) | ⬜ | — |
+| 4 | วางรากฐานโปรเจกต์ (Foundation) | ✅ เสร็จ — Production ที่ `webnppool.vercel.app` (Neon Singapore) · login ด้วยบัญชีผู้ดูแลได้ | ✅ ผู้ใช้ให้เริ่มขั้นที่ 5 (2026-11-27) |
+| 5 | สร้างฟีเจอร์ตาม Parity Matrix (Rebuild) | 🟨 โมดูล 1: ผู้ใช้และสิทธิ์ | ⏸ อนุมัติทีละโมดูล |
 | 6 | ย้ายข้อมูล (Data Migration) | ⬜ | — |
 | 7 | ทดสอบเทียบระบบเดิมและ UAT | ⬜ | — |
 | 8 | ขึ้นระบบจริงและส่งมอบ | ⬜ | — |
@@ -29,7 +29,8 @@
 | B4 | ไม่รู้ว่าระบบที่ใช้งานจริงเป็นเวอร์ชันไหน อยู่เครื่องไหน | ผู้ใช้ตอบ Q1–Q2 | ✅ ปิด (2026-11-26) — ไม่ได้เปิดใช้งานแล้ว ใช้ซอร์สล่าสุดเป็นต้นแบบ |
 | B5 | schema ฉบับใหม่ (มี `Location_From_To`) ไม่มีในฐานข้อมูลบนเครื่องนี้ — มีแค่ใน export | ใช้ export + โค้ดเป็นต้นแบบ schema | 🟨 ไม่บล็อก — ระวังตอนทดสอบเทียบกับระบบเดิม (03 หัวข้อ 6) |
 | B6 | ยังไม่มีรายการประเภทรถจริง (ค่าในฐานข้อมูลเดิมเป็นรถยนต์นั่ง — Q22) | ผู้ใช้ส่งรายการประเภทรถที่ใช้จริง | 🟨 ไม่บล็อกขั้นที่ 3–4 · ต้องได้ก่อน seed production |
-| B7 | ขั้นที่ 4 ต้องมีบัญชี Vercel ที่ผูกกับ repo และติดตั้ง Neon จาก Marketplace | ผู้ใช้ทำตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) ในบัญชีของตัวเอง แล้วแจ้ง Claude | 🟨 ขั้นตอนพร้อมแล้ว — รอผู้ใช้ทำ |
+| B7 | ขั้นที่ 4 ต้องมีบัญชี Vercel ที่ผูกกับ repo และติดตั้ง Neon จาก Marketplace | ผู้ใช้ทำตาม [runbook 01](docs/runbook/01-vercel-neon-setup.md) ในบัญชีของตัวเอง แล้วแจ้ง Claude | ✅ ปิด (2026-11-27) — ตั้งค่าร่วมกันใน browser pane · Production ใช้งานได้ |
+| B9 | Preview ยังไม่มี `BETTER_AUTH_SECRET` — build ของ branch งานล้มที่ `env:check` | ผู้ใช้เพิ่ม `BETTER_AUTH_SECRET` ให้ Preview (ค่าใหม่ ไม่ซ้ำ Production) | 🟨 ต้องมีก่อนตรวจโมดูลบน Preview |
 | B8 | โลโก้ NP Pool จริง — กติกาห้ามคัดลอกไฟล์จากงานเดิมเข้า repo | ผู้ใช้ส่งไฟล์โลโก้ หรืออนุญาตให้คัดลอกไฟล์โลโก้จาก `C:\Projects\NPPool` | 🟨 ไม่บล็อก — ระหว่างนี้ใช้ตราตัวอักษร + ไอคอนรถบรรทุก |
 
 ## Decision log
@@ -54,16 +55,17 @@
 | D16 | สิทธิ์ deny by default ตรวจทุก page และ Server Action | ✅ อนุมัติ ([ADR-0009](docs/adr/0009-authorization-deny-by-default.md)) | 2026-11-27 |
 | D17 | ไม่ลบถาวร: ยกเลิกใบงาน / ปิดใช้งานข้อมูลพื้นฐาน + FK | ✅ อนุมัติ ([ADR-0010](docs/adr/0010-no-hard-delete.md)) | 2026-11-27 |
 | D18 | Migration รันใน build ของ Vercel + seed แบบรันซ้ำได้ | ✅ อนุมัติ ([ADR-0011](docs/adr/0011-migrations-and-seed-data.md)) | 2026-11-27 |
-| D19 | เปิด Cache Components + Partial Prefetching ไว้ (ค่าเริ่มต้นของ Next.js 16.4 และจะบังคับในรุ่นหลักถัดไป) — ส่วนที่อ่าน session อยู่ใน `<Suspense>` | ⏸ เสนอ (ขั้นที่ 4) | 2026-11-27 |
-| D20 | session 30 นาทีแบบต่ออายุทั้งแบบจดจำ/ไม่จดจำ: hook ใน `session-policy.ts` + `SessionKeepAlive` (ไลบรารีให้แบบไม่จดจำ 24 ชม. ไม่ต่ออายุ — ไม่ตรง BR-AU-03) | ⏸ เสนอ ([ADR-0004](docs/adr/0004-auth-better-auth.md) ผลตรวจ) | 2026-11-27 |
-| D21 | Neon: branch แยกต่อ Preview (`Create database branch for deployment: Preview`) · ไม่เชื่อม Development (กันใช้ฐานข้อมูล production บนเครื่อง) · ปิด Neon Auth | ⏸ เสนอ ([runbook 01](docs/runbook/01-vercel-neon-setup.md)) | 2026-11-27 |
-| D22 | ผู้ดูแลคนแรกสร้างจาก `ADMIN_*` ใน build (`admin:ensure`) · `env:check` เป็นขั้นแรกของ build | ⏸ เสนอ | 2026-11-27 |
-| D23 | Node.js 24.x (`engines`) ทั้ง Vercel และ CI | ⏸ เสนอ | 2026-11-27 |
+| D19 | เปิด Cache Components + Partial Prefetching ไว้ (ค่าเริ่มต้นของ Next.js 16.4 และจะบังคับในรุ่นหลักถัดไป) — ส่วนที่อ่าน session อยู่ใน `<Suspense>` | ✅ อนุมัติ (ให้เริ่มขั้นที่ 5) | 2026-11-27 |
+| D20 | session 30 นาทีแบบต่ออายุทั้งแบบจดจำ/ไม่จดจำ: hook ใน `session-policy.ts` + `SessionKeepAlive` (ไลบรารีให้แบบไม่จดจำ 24 ชม. ไม่ต่ออายุ — ไม่ตรง BR-AU-03) | ✅ อนุมัติ ([ADR-0004](docs/adr/0004-auth-better-auth.md) ผลตรวจ) | 2026-11-27 |
+| D21 | Neon: branch แยกต่อ Preview (`Create database branch for deployment: Preview`) · ไม่เชื่อม Development (กันใช้ฐานข้อมูล production บนเครื่อง) · ปิด Neon Auth | ✅ อนุมัติ ([runbook 01](docs/runbook/01-vercel-neon-setup.md)) | 2026-11-27 |
+| D22 | ผู้ดูแลคนแรกสร้างจาก `ADMIN_*` ใน build (`admin:ensure`) · `env:check` เป็นขั้นแรกของ build | ✅ อนุมัติ | 2026-11-27 |
+| D23 | Node.js 24.x (`engines`) ทั้ง Vercel และ CI | ✅ อนุมัติ | 2026-11-27 |
 
 ## ประวัติการอนุมัติ
 
 | วันที่ | ขั้น | ผล | หมายเหตุ |
 |---|---|---|---|
+| 2026-11-27 | 4 → 5 | ผู้ใช้ “หา user/pass admin ได้ครบหมด เริ่มพัฒนาหน้าอื่น ๆ ตามแผนต่อได้เลย” — login Production ได้ · ถือว่าอนุมัติจบขั้นที่ 4 และ D19–D23 | ผู้ใช้ merge PR #2 เข้า `main` เอง จึงขึ้น Production ก่อน Preview |
 | 2026-11-27 | 3 → 4 | ผู้ใช้ “อนุมัติ ใช้แบบ A” — อนุมัติแบบระบบและ ADR ที่เสนอทั้งหมด (D10–D18) · เลือกพิมพ์ใบสั่งปฏิบัติงานด้วยหน้า HTML | — |
 | 2026-11-26 | 2 → 3 | ผู้ใช้ “ยืนยัน เริ่มขั้นที่ 3” — ยืนยันการถอดแบบ, ความสำคัญ M/S/C/Drop, MVP, ความต่างที่ตั้งใจ, ค่าเริ่มต้นของคำถามที่ยังไม่ตอบ และ D2 | ผลจากค่าเริ่มต้น Q19: MD-08 เข้า MVP (25 รายการ) |
 | 2026-11-26 | 1 → 2 | ผู้ใช้อนุมัติเริ่มขั้นที่ 2 · อนุมัติ D3 (Neon) และ D4 (Drizzle) · ตอบ Q1–Q3 | อนุญาตให้เซสชันรันสคริปต์ SELECT ด้วย Windows authentication · D2 ยังรอยืนยัน |
@@ -71,6 +73,46 @@
 | 2026-11-25 | 0 | ผู้ใช้เลือกวิธี C — ทำงานต่อในเซสชันบนเครื่องผู้ใช้ | ข้อความส่งต่องานอยู่ใน plan.md หัวข้อ 5 |
 
 ## บันทึกการทำงาน (ใหม่อยู่บน)
+
+### 2026-11-27 · เซสชันที่ 2 (ต่อ) · ขั้นที่ 5 — โมดูล 1 ผู้ใช้และสิทธิ์
+
+**ทำแล้ว**
+
+- หน้า `/admin/users` (AUTH-06, design 02 หัวข้อ 3.7): รายการ (ชื่อผู้ใช้, ชื่อ-นามสกุล, เบอร์, บทบาท, สถานะ) · เพิ่มผู้ใช้ · เปลี่ยนบทบาท · ตั้งรหัสผ่านใหม่ (ผู้ใช้ถูกออกจากระบบทุกเครื่อง) · ระงับ / เลิกระงับ (ยืนยันด้วย AlertDialog)
+- กันพลาด: ระงับหรือลดบทบาท Admin ที่ใช้งานได้คนสุดท้ายไม่ได้ · ระงับตัวเองไม่ได้
+- โครง: `src/features/users/` = `schemas.ts` (Zod ใช้ร่วมฟอร์มกับ server) · `service.ts` (กฎ — ไม่ผูก Next.js จึง test บน PGlite ได้) · `actions.ts` (Server Actions: ตรวจสิทธิ์ → validate → ทำงาน → `refresh()`) · `components/` · Better Auth admin plugin ตรวจสิทธิ์อีกชั้น
+- Test เพิ่ม 9 integration + 3 unit (รวม 76)
+
+**ตรวจ**
+
+- lint, typecheck, test, build ผ่าน · หน้าจอยังไม่ได้ลองกับฐานข้อมูลจริง (บนเครื่องไม่มีฐานข้อมูล) — ตรวจบน Preview หลังเพิ่ม `BETTER_AUTH_SECRET` ของ Preview (B9)
+
+**ถัดไป**
+
+- ⏸ ผู้ใช้ลองและอนุมัติโมดูล 1 → โมดูล 2 ข้อมูลพื้นฐาน (ผู้ว่าจ้าง, รถ, พนักงานขับรถ, สถานที่รับ-ส่ง)
+
+### 2026-11-27 · เซสชันที่ 2 (ต่อ) · ขั้นที่ 4 — ตั้งค่า Vercel + Neon และ deploy แรก
+
+**ทำแล้ว**
+
+- ผู้ใช้ merge PR #2 เข้า `main` → Vercel build Production แล้วหยุดที่ `env:check` (ยังไม่มีฐานข้อมูล) ตามที่ออกแบบ
+- ตั้งค่าร่วมกันใน browser pane (ผู้ใช้ login และใส่ค่าความลับเอง): ติดตั้ง Neon `nppool-db` (Singapore, Free, ปิด Neon Auth) → เชื่อม `webnppool` สำหรับ Production + Preview พร้อม branch ต่อ Preview → `ADMIN_USERNAME`, `ADMIN_NAME` (Production + Preview) → ผู้ใช้ใส่ `BETTER_AUTH_SECRET`, `ADMIN_PASSWORD` (Production)
+- Redeploy Production ผ่าน (migrate + seed + build) → ครั้งต่อมาล้มเพราะ key `ADMIN_USERNAME` ถูกแก้ชื่อ และ `ADMIN_PASSWORD` ไม่มีตัวพิมพ์ใหญ่ → ผู้ใช้แก้ → `admin: created "admin"` · ระหว่างนั้น Production ตัวที่ผ่านล่าสุดยังให้บริการ
+- ตรวจ `webnppool.vercel.app`: `/` และหน้าที่ต้อง login → 307 ไป `/login` · `/login` 200 · `/api/auth/get-session` 200 · ผู้ใช้ login ด้วยบัญชีผู้ดูแลได้
+
+**พบระหว่างทำ**
+
+- auto mode ไม่ให้ Claude กดยืนยัน deploy ขึ้น Production และไม่ให้เปิดดูค่าของตัวแปร — ผู้ใช้กดเอง
+- หน้า Environment Variables ของ Vercel แยกชนิด **Secret** (อ่านย้อนไม่ได้) กับ **Config** และ list ตัดชื่อ key ให้สั้น — ตรวจชื่อเต็มก่อน deploy
+- log มีคำเตือนของ `pg` เรื่อง `sslmode=require` ที่จะเปลี่ยนความหมายใน `pg` 9 — ยังไม่กระทบ บันทึกไว้แก้ตอนอัปเดต driver
+
+**ผลลัพธ์**
+
+- Production: `webnppool.vercel.app` · ฐานข้อมูล Neon `nppool-db` (Singapore) มีตารางครบ + สถานะงาน + ผู้ดูแล 1 คน
+
+**ถัดไป**
+
+- ผู้ใช้เพิ่ม `BETTER_AUTH_SECRET` ให้ Preview (B9) · เริ่มขั้นที่ 5 โมดูล 1 ผู้ใช้และสิทธิ์
 
 ### 2026-11-27 · เซสชันที่ 2 (ต่อ) · ขั้นที่ 4 — Foundation
 
