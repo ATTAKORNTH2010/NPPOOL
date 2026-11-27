@@ -60,14 +60,16 @@
 
 ## 3. ตั้ง environment variables ของแอป
 
-Settings → **Environment Variables** → เพิ่มทีละตัว (แต่ละตัวเลือก Environments ตามตาราง)
+Settings → **Environment Variables** → **Add Environment Variable** → เพิ่มทีละตัว (หน้าจอปี 2026 ให้เลือก Type: **Secret** = อ่านย้อนไม่ได้ · **Config** = อ่านได้)
 
-| Key | ค่า | Environments | Sensitive |
+| Key (ต้องสะกดตรงทุกตัว) | ค่า | Environments | Type |
 |---|---|---|---|
-| `BETTER_AUTH_SECRET` | ค่าสุ่ม ≥ 32 ตัวอักษร — **ใช้คนละค่า** ระหว่าง Production กับ Preview (เพิ่ม key เดียวกัน 2 ครั้ง) | Production · Preview | ✅ |
-| `ADMIN_USERNAME` | ชื่อผู้ใช้ของผู้ดูแลคนแรก เช่น `admin` (a-z 0-9 `_` `.` ยาว 3–30) | Preview | — |
-| `ADMIN_NAME` | ชื่อที่แสดง เช่น `ผู้ดูแลระบบ` | Preview | — |
-| `ADMIN_PASSWORD` | รหัสผ่าน 8–128 ตัว มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก ตัวเลข และสัญลักษณ์ | Preview | ✅ |
+| `BETTER_AUTH_SECRET` | ค่าสุ่ม ≥ 32 ตัวอักษร — **ใช้คนละค่า** ระหว่าง Production กับ Preview (เพิ่ม key เดียวกัน 2 ครั้ง) | Production · Preview | Secret |
+| `ADMIN_USERNAME` | ชื่อผู้ใช้ของผู้ดูแลคนแรก เช่น `admin` (a-z 0-9 `_` `.` ยาว 3–30) | Production · Preview | Config |
+| `ADMIN_NAME` | ชื่อที่แสดง เช่น `ผู้ดูแลระบบ` | Production · Preview | Config |
+| `ADMIN_PASSWORD` | รหัสผ่าน 8–128 ตัว มี**ตัวพิมพ์ใหญ่** ตัวพิมพ์เล็ก ตัวเลข และสัญลักษณ์ — จดไว้ในโปรแกรมเก็บรหัสผ่านก่อนกด Save | Production | Secret |
+
+> ทำจริงเมื่อ 2026-11-27: `main` ถูก merge ก่อน Production จึงขึ้นก่อน Preview — build แรกของ Production สร้างตาราง และผู้ดูแลในฐานข้อมูลหลัก · Preview ทุก branch คัดลอกฐานข้อมูลจากหลัก (มีผู้ดูแลอยู่แล้ว) จึงต้องการแค่ `BETTER_AUTH_SECRET` ของ Preview
 
 สร้างค่า `BETTER_AUTH_SECRET` บนเครื่องตัวเอง (PowerShell) — รัน 1 ครั้งต่อ 1 ค่า แล้วคัดลอกผลลัพธ์ไปวางในช่อง Value:
 
@@ -79,9 +81,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
 - **ห้าม** วางรหัสผ่านหรือ secret ใน GitHub, ในแชต หรือในไฟล์ของ repo
 - `ADMIN_*` ใช้โดย `npm run admin:ensure` ซึ่งรันทุกครั้งที่ build: สร้างผู้ดูแลเฉพาะเมื่อยังไม่มีชื่อผู้ใช้นี้ และไม่พิมพ์รหัสผ่านลง log
-- เพราะ Preview แต่ละ git branch ได้ฐานข้อมูลใหม่ที่คัดลอกจาก production (ตอนนี้ยังว่าง) จึงต้องเก็บ `ADMIN_*` ไว้ใน Preview จนกว่าขั้นที่ 5 จะมีหน้าจัดการผู้ใช้
-- **ไม่ต้อง** ตั้ง `BETTER_AUTH_URL` บน Vercel แอปคำนวณ URL จากตัวแปรระบบของ Vercel เอง (ตั้งเฉพาะเมื่อมีโดเมนของตัวเอง)
-- Production ยังไม่ต้องตั้ง `ADMIN_*` — ทำตอนขึ้นระบบจริง (ขั้นที่ 7)
+- **สร้างแล้วจะไม่เปลี่ยนตาม env:** แก้ `ADMIN_PASSWORD` ภายหลังไม่เปลี่ยนรหัสของบัญชีที่มีอยู่ — ลืมรหัสให้ผู้ดูแลอีกคนตั้งรหัสใหม่ในหน้า “จัดการผู้ใช้” (ขั้นที่ 5)
+- รหัสผ่านไม่ผ่านนโยบาย → build ล้ม (`admin bootstrap failed: ADMIN_PASSWORD: …`) แต่ Production ตัวเดิมยังให้บริการ
+- **ไม่ต้อง** ตั้ง `BETTER_AUTH_URL` บน Vercel แอปคำนวณ URL จากตัวแปรระบบของ Vercel เอง (ตั้งเฉพาะเมื่อมีโดเมนของตัวเอง) — ต้องติ๊ก “Enable access to System Environment Variables” ไว้ (ค่าเริ่มต้น)
 
 ## 4. สั่ง deploy branch งาน
 
