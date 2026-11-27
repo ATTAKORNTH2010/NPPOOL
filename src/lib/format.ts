@@ -66,3 +66,11 @@ export function formatMoney(value: string | number | null | undefined): string {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? moneyFormatter.format(n) : "";
 }
+
+/** Thai tax ID (13 digits) as 0-1055-12345-67-8; anything else is returned as is. */
+export function formatTaxId(value: string | null | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 13) return value;
+  return `${digits.slice(0, 1)}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits.slice(12)}`;
+}

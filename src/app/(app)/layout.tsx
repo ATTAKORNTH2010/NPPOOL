@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AppSidebar, AppSidebarSkeleton } from "@/components/layout/app-sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SessionKeepAlive } from "@/components/layout/session-keep-alive";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
@@ -8,14 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Signed-in shell. Everything that reads the session sits inside <Suspense>
- * so the frame itself is prerendered (Cache Components).
+ * so the frame itself is prerendered (Cache Components). The sidebar frame
+ * stays outside Suspense on purpose (see AppSidebar).
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <Suspense fallback={<AppSidebarSkeleton />}>
-        <AppSidebar />
-      </Suspense>
+      <AppSidebar />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
           <SidebarTrigger className="-ml-1" />

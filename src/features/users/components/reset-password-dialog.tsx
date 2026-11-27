@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { resetPasswordAction } from "../actions";
 import { resetPasswordFormSchema } from "../schemas";
 import type { UserListItem } from "../service";
-import { applyFieldErrors } from "./form-errors";
+import { applyFieldErrors } from "@/components/form/apply-field-errors";
 
 type FormValues = z.infer<typeof resetPasswordFormSchema>;
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { passwordSchema, usernameSchema } from "@/lib/auth/password-policy";
 import { ROLES } from "@/lib/permissions";
+import { phoneSchema } from "@/lib/validation";
 
 /** Shared by the forms and the Server Actions (design 02, section 3.7). */
 export const roleSchema = z.enum(ROLES, { error: "กรุณาเลือกบทบาท" });
@@ -10,12 +11,6 @@ export const fullNameSchema = z
   .trim()
   .min(1, "กรุณากรอกชื่อ-นามสกุล")
   .max(100, "ชื่อ-นามสกุลยาวได้ไม่เกิน 100 ตัวอักษร");
-
-export const phoneSchema = z
-  .string()
-  .trim()
-  .max(20, "เบอร์โทรยาวได้ไม่เกิน 20 ตัวอักษร")
-  .regex(/^[0-9+\-\s()]*$/, "เบอร์โทรใช้ได้เฉพาะตัวเลข + - ( ) และช่องว่าง");
 
 const userIdSchema = z.string().min(1);
 
