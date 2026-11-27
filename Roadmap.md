@@ -1,7 +1,7 @@
 # NPPool — Roadmap และบันทึกการทำงาน
 
 แผนเต็ม → [plan.md](plan.md) · วิธีการและความรู้ → [skill.md](skill.md)
-อัปเดตล่าสุด: 2026-11-26
+อัปเดตล่าสุด: 2026-11-27
 
 ## สถานะภาพรวม
 
@@ -10,8 +10,8 @@
 | 0 | เตรียมการและเข้าถึงงานเดิม | ✅ เสร็จ — เลือกวิธี C (ทำงานในเซสชันบนเครื่องผู้ใช้) | ✅ ให้ดำเนินการต่อ (2026-11-25) |
 | 1 | สำรวจและทำบัญชีรายการ (Discovery & Inventory) | ✅ เสร็จ — [docs/rea/01-inventory.md](docs/rea/01-inventory.md) + คำถามค้าง 28 ข้อ (ตอบแล้ว 3) + ผลฐานข้อมูลจริง | ✅ อนุมัติ (2026-11-26) |
 | 2 | ถอดแบบระบบเดิม (Analysis) | ✅ เสร็จ — [02-domain-model](docs/rea/02-domain-model.md) · [03-feature-parity](docs/rea/03-feature-parity.md) · [04-business-rules](docs/rea/04-business-rules.md) | ✅ ยืนยันการถอดแบบ + MVP 25 รายการ (2026-11-26) |
-| 3 | ออกแบบระบบใหม่ (Target Design) | ⏸ เสร็จ — [docs/design](docs/design/01-architecture.md) (3 ไฟล์) + [ADR 11 ฉบับ](docs/adr/README.md) | ✅ อนุมัติให้เริ่ม (2026-11-26) · ⏸ รออนุมัติแบบ + เลือกวิธีพิมพ์ (ADR-0005) |
-| 4 | วางรากฐานโปรเจกต์ (Foundation) | ⬜ | — |
+| 3 | ออกแบบระบบใหม่ (Target Design) | ✅ เสร็จ — [docs/design](docs/design/01-architecture.md) (3 ไฟล์) + [ADR 11 ฉบับ](docs/adr/README.md) | ✅ อนุมัติแบบ + เลือกวิธีพิมพ์ A (2026-11-27) |
+| 4 | วางรากฐานโปรเจกต์ (Foundation) | 🟨 กำลังทำ | ✅ อนุมัติให้เริ่ม (2026-11-27) |
 | 5 | สร้างฟีเจอร์ตาม Parity Matrix (Rebuild) | ⬜ | — |
 | 6 | ย้ายข้อมูล (Data Migration) | ⬜ | — |
 | 7 | ทดสอบเทียบระบบเดิมและ UAT | ⬜ | — |
@@ -44,20 +44,21 @@
 | D7 | ขอบเขต MVP = ฟีเจอร์ระดับ M (03 หัวข้อ 5) — 25 รายการ หลังค่าเริ่มต้น Q19 ย้าย MD-08 เข้ามา | ✅ ผู้ใช้ยืนยัน | 2026-11-26 |
 | D8 | ไม่ย้ายข้อมูลธุรกรรม (ฐานข้อมูลไม่มีใบงาน) — ขั้นที่ 6 เหลือ seed ข้อมูลอ้างอิง | ✅ ยืนยันผ่าน GEN-06 Drop (ADR-0011) | 2026-11-26 |
 | D9 | คำถามที่ยังไม่ตอบใช้ค่าเริ่มต้นใน 03 หัวข้อ 7 (Q5, Q6, Q9–Q11, Q14, Q15, Q17, Q19, Q26) | ✅ ผู้ใช้ยืนยัน | 2026-11-26 |
-| D10 | DB driver = `pg` Pool + `attachDatabasePool` บน Vercel Fluid | ⏸ เสนอ ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | 2026-11-26 |
-| D11 | Auth = Better Auth (username + admin plugin, session และ rate limit ในฐานข้อมูล) | ⏸ เสนอ ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | 2026-11-26 |
-| D12 | ใบสั่งปฏิบัติงาน = หน้า HTML สำหรับพิมพ์ (A) หรือ PDF จาก server (B) | ⏸ ขอให้เลือก — เสนอ A ([ADR-0005](docs/adr/0005-job-order-printing.md)) | 2026-11-26 |
-| D13 | UI = Tailwind + shadcn/ui + Noto Sans Thai / Sarabun + แบรนด์ NP Pool | ⏸ เสนอ ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | 2026-11-26 |
-| D14 | เลขที่ใบงานด้วยตารางตัวนับต่อเดือน + unique + เวลาไทย | ⏸ เสนอ ([ADR-0007](docs/adr/0007-work-order-numbering.md)) | 2026-11-26 |
-| D15 | เวลาเก็บ `timestamptz` แสดง Asia/Bangkok ปี พ.ศ. | ⏸ เสนอ ([ADR-0008](docs/adr/0008-dates-timezone-buddhist-year.md)) | 2026-11-26 |
-| D16 | สิทธิ์ deny by default ตรวจทุก page และ Server Action | ⏸ เสนอ ([ADR-0009](docs/adr/0009-authorization-deny-by-default.md)) | 2026-11-26 |
-| D17 | ไม่ลบถาวร: ยกเลิกใบงาน / ปิดใช้งานข้อมูลพื้นฐาน + FK | ⏸ เสนอ ([ADR-0010](docs/adr/0010-no-hard-delete.md)) | 2026-11-26 |
-| D18 | Migration รันใน build ของ Vercel + seed แบบรันซ้ำได้ | ⏸ เสนอ ([ADR-0011](docs/adr/0011-migrations-and-seed-data.md)) | 2026-11-26 |
+| D10 | DB driver = `pg` Pool + `attachDatabasePool` บน Vercel Fluid | ✅ อนุมัติ ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | 2026-11-27 |
+| D11 | Auth = Better Auth (username + admin plugin, session และ rate limit ในฐานข้อมูล) | ✅ อนุมัติ ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | 2026-11-27 |
+| D12 | ใบสั่งปฏิบัติงาน = หน้า HTML สำหรับพิมพ์ (A) หรือ PDF จาก server (B) | ✅ ผู้ใช้เลือก A ([ADR-0005](docs/adr/0005-job-order-printing.md)) | 2026-11-27 |
+| D13 | UI = Tailwind + shadcn/ui + Noto Sans Thai / Sarabun + แบรนด์ NP Pool | ✅ อนุมัติ ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | 2026-11-27 |
+| D14 | เลขที่ใบงานด้วยตารางตัวนับต่อเดือน + unique + เวลาไทย | ✅ อนุมัติ ([ADR-0007](docs/adr/0007-work-order-numbering.md)) | 2026-11-27 |
+| D15 | เวลาเก็บ `timestamptz` แสดง Asia/Bangkok ปี พ.ศ. | ✅ อนุมัติ ([ADR-0008](docs/adr/0008-dates-timezone-buddhist-year.md)) | 2026-11-27 |
+| D16 | สิทธิ์ deny by default ตรวจทุก page และ Server Action | ✅ อนุมัติ ([ADR-0009](docs/adr/0009-authorization-deny-by-default.md)) | 2026-11-27 |
+| D17 | ไม่ลบถาวร: ยกเลิกใบงาน / ปิดใช้งานข้อมูลพื้นฐาน + FK | ✅ อนุมัติ ([ADR-0010](docs/adr/0010-no-hard-delete.md)) | 2026-11-27 |
+| D18 | Migration รันใน build ของ Vercel + seed แบบรันซ้ำได้ | ✅ อนุมัติ ([ADR-0011](docs/adr/0011-migrations-and-seed-data.md)) | 2026-11-27 |
 
 ## ประวัติการอนุมัติ
 
 | วันที่ | ขั้น | ผล | หมายเหตุ |
 |---|---|---|---|
+| 2026-11-27 | 3 → 4 | ผู้ใช้ “อนุมัติ ใช้แบบ A” — อนุมัติแบบระบบและ ADR ที่เสนอทั้งหมด (D10–D18) · เลือกพิมพ์ใบสั่งปฏิบัติงานด้วยหน้า HTML | — |
 | 2026-11-26 | 2 → 3 | ผู้ใช้ “ยืนยัน เริ่มขั้นที่ 3” — ยืนยันการถอดแบบ, ความสำคัญ M/S/C/Drop, MVP, ความต่างที่ตั้งใจ, ค่าเริ่มต้นของคำถามที่ยังไม่ตอบ และ D2 | ผลจากค่าเริ่มต้น Q19: MD-08 เข้า MVP (25 รายการ) |
 | 2026-11-26 | 1 → 2 | ผู้ใช้อนุมัติเริ่มขั้นที่ 2 · อนุมัติ D3 (Neon) และ D4 (Drizzle) · ตอบ Q1–Q3 | อนุญาตให้เซสชันรันสคริปต์ SELECT ด้วย Windows authentication · D2 ยังรอยืนยัน |
 | 2026-11-25 | 0 → 1 | ผู้ใช้แจ้งเปิด Remote Control และให้ดำเนินงานต่อ | D2–D4 ยังรอยืนยัน |

@@ -1,6 +1,6 @@
 # NPPool — แผนงาน REA (Reverse Engineering Anything)
 
-> **สถานะ:** ฉบับร่าง v0.4 · 2026-11-26 · ขั้นที่ 0–2 เสร็จและอนุมัติแล้ว · ขั้นที่ 3 เสร็จ → [docs/design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) · **⏸ รออนุมัติแบบก่อนเริ่มขั้นที่ 4**
+> **สถานะ:** ฉบับร่าง v0.5 · 2026-11-27 · ขั้นที่ 0–3 เสร็จและอนุมัติแล้ว ([design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md)) · **🟨 ขั้นที่ 4 Foundation กำลังทำ**
 > บันทึกการทำงาน → [Roadmap.md](Roadmap.md) · วิธีการ แม่แบบ และความรู้ → [skill.md](skill.md)
 
 ---
@@ -24,7 +24,7 @@
 | ภาษา/เฟรมเวิร์กเดิม, ฟีเจอร์, ฐานข้อมูล, ผู้ใช้และสิทธิ์ | ✅ ASP.NET Core 8 MVC + Dapper + SQL Server · 9 หน้าจอ · 12 ตาราง + 14 view · 3 บทบาท — ดู [01-inventory.md](docs/rea/01-inventory.md) |
 | ระบบที่ใช้งานจริงและข้อมูล | ✅ ระบบไม่ได้เปิดใช้งานแล้ว (ใช้ซอร์สล่าสุดเป็นต้นแบบ) · ฐานข้อมูลบนเครื่องผู้ใช้ไม่มีใบงาน ข้อมูลพื้นฐานเป็นข้อมูลทดสอบ · ไม่มี FK (01-inventory หัวข้อ 8.0) |
 | Domain model, กฎธุรกิจ, Parity Matrix | ✅ ขั้นที่ 2 ยืนยันแล้ว — [02](docs/rea/02-domain-model.md) · [03](docs/rea/03-feature-parity.md) · [04](docs/rea/04-business-rules.md) · MVP 25 รายการ |
-| แบบระบบใหม่ | ⏸ ขั้นที่ 3 — [design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) |
+| แบบระบบใหม่ | ✅ ขั้นที่ 3 อนุมัติ 2026-11-27 — [design](docs/design/01-architecture.md) · [ADR](docs/adr/README.md) |
 | กฎธุรกิจที่ไม่อยู่ในโค้ด | 🟨 ส่วนใหญ่ใช้ค่าเริ่มต้นที่ยืนยันแล้ว · ยังเปิด: Q4, Q10 (ลำดับสถานะ), Q12, Q13, Q16, Q18, Q21, Q22 (ประเภทรถจริง), Q23, Q27, Q28 — 01-inventory หัวข้อ 15 |
 
 ## 3. ทิศทางเทคโนโลยีที่เสนอ (ตรวจเวอร์ชันจาก npm เมื่อ 2026-11-25)
@@ -34,12 +34,12 @@
 | Framework | **Next.js 16** (App Router, ล่าสุด 16.4.6) + React 19 + TypeScript ✅ อนุมัติ (D2, ADR-0001) | ตามโจทย์ และเป็นเฟรมเวิร์กที่ Vercel รองรับดีที่สุด |
 | Runtime | Node.js ≥ 20.9 (ใช้เวอร์ชัน LTS ที่ Vercel รองรับ — ยืนยันในขั้นที่ 4) | ข้อกำหนดขั้นต่ำของ Next.js 16 |
 | Database | **Postgres ผ่าน Vercel Marketplace → Neon** ✅ อนุมัติ (D3, 2026-11-26) | Vercel Postgres เดิมเลิกให้บริการแล้ว (หัวข้อ 3.1) |
-| DB driver | ⏸ เสนอ `pg` Pool + `attachDatabasePool` บน Vercel Fluid ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | ต้องใช้ transaction แบบ interactive · ไม่ใช้ `@vercel/postgres` ที่ถูก deprecate |
+| DB driver | ✅ อนุมัติ `pg` Pool + `attachDatabasePool` บน Vercel Fluid ([ADR-0003](docs/adr/0003-drizzle-and-db-connection.md)) | ต้องใช้ transaction แบบ interactive · ไม่ใช้ `@vercel/postgres` ที่ถูก deprecate |
 | ORM / Migration | **Drizzle ORM + drizzle-kit** ✅ อนุมัติ (D4, 2026-11-26) | type-safe, เบา, เหมาะกับ serverless, migration เป็นไฟล์ SQL อ่านตรวจง่าย |
 | Validation | Zod | ตรวจข้อมูลเข้าที่ Server Action / API ทุกจุด |
-| UI | ⏸ เสนอ Tailwind CSS v4 + shadcn/ui + ฟอนต์ไทย ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | |
-| Auth | ⏸ เสนอ Better Auth — username + admin plugin ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | Auth.js อยู่ในความดูแลของทีม Better Auth แล้ว · ไม่ย้ายรหัสผ่านเดิม |
-| PDF / พิมพ์ | ⏸ ขอให้เลือก: เสนอหน้า HTML สำหรับพิมพ์ ([ADR-0005](docs/adr/0005-job-order-printing.md)) | ระบบเดิมใช้ wkhtmltopdf (.exe) ซึ่งใช้บน Vercel ไม่ได้ |
+| UI | ✅ อนุมัติ Tailwind CSS v4 + shadcn/ui + ฟอนต์ไทย ([ADR-0006](docs/adr/0006-ui-kit-and-thai-fonts.md)) | |
+| Auth | ✅ อนุมัติ Better Auth — username + admin plugin ([ADR-0004](docs/adr/0004-auth-better-auth.md)) | Auth.js อยู่ในความดูแลของทีม Better Auth แล้ว · ไม่ย้ายรหัสผ่านเดิม |
+| PDF / พิมพ์ | ✅ เลือก A: หน้า HTML สำหรับพิมพ์ / บันทึก PDF จาก browser ([ADR-0005](docs/adr/0005-job-order-printing.md)) | ระบบเดิมใช้ wkhtmltopdf (.exe) ซึ่งใช้บน Vercel ไม่ได้ |
 | Test | Vitest (unit) + Playwright (E2E / เทียบผลกับระบบเดิม) | |
 | CI/CD | GitHub Actions (lint, typecheck, test, build) + Vercel Git Integration | Preview ทุก branch, Production จาก `main` |
 | Region | ฐานข้อมูลและ Functions อยู่ Singapore (ใกล้ผู้ใช้ในไทย) | ยืนยันในขั้นที่ 4 |
@@ -90,7 +90,7 @@
 
 **ผลลัพธ์:** `docs/rea/02-domain-model.md` (รวม role matrix และ user flow), `03-feature-parity.md`, `04-business-rules.md` · **⏸ ผู้ใช้ยืนยันว่าถอดแบบถูกต้อง + เลือกขอบเขต MVP** (รายการที่ขอยืนยันอยู่ใน 03 หัวข้อ 7)
 
-### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design) ⏸ *เสร็จ 2026-11-26 · รออนุมัติแบบ*
+### ขั้นที่ 3 — ออกแบบระบบใหม่ (Target Design) ✅ *เสร็จ 2026-11-26 · อนุมัติ 2026-11-27*
 
 - สถาปัตยกรรม, โครงสร้างโฟลเดอร์, แผนผังหน้าจอ (route map)
 - Postgres schema ใหม่ + ตาราง mapping ข้อมูลเดิม → ใหม่
@@ -100,7 +100,7 @@
 
 **ผลลัพธ์:** `docs/design/*` (สถาปัตยกรรม, หน้าจอ/route map, ฐานข้อมูล + mapping), `docs/adr/*` (11 ฉบับ) · **⏸ อนุมัติแบบ**
 
-### ขั้นที่ 4 — วางรากฐานโปรเจกต์ (Foundation) ← *ถัดไป*
+### ขั้นที่ 4 — วางรากฐานโปรเจกต์ (Foundation) 🟨 *กำลังทำ (เริ่ม 2026-11-27)*
 
 - Scaffold Next.js 16 + TypeScript + Tailwind + ESLint
 - Drizzle + Neon: schema เริ่มต้น, migration, seed
