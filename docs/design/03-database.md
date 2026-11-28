@@ -133,6 +133,7 @@ erDiagram
 | `customer_job_no` | text | ได้ | | Job No., Shipment |
 | `remark` | text | ได้ | | |
 | `transport_fee` | numeric(14,2) | ได้ | check ≥ 0 | ค่าขนส่ง |
+| `fuel_price` | smallint | ได้ | check `null or between 25 and 50` (migration `0003`) | ราคาน้ำมัน (บาท/ลิตร) ที่ใช้หาค่าขนส่งจากตารางราคาของเส้นทาง (D40) — ไม่บังคับ |
 | `port_fee`, `demurrage_fee` | numeric(14,2) | ได้ | check ≥ 0 | ค่าผ่านท่า, ค่าเสียเวลา |
 | `overnight_nights` | smallint | ไม่ | default 0 · check 0–15 | จำนวนคืน (เดิม `FeeOvernight`) |
 | `overnight_labor_fee` | numeric(14,2) | ได้ | check ≥ 0 | ค่าแรงค้างคืน |

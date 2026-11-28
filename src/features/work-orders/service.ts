@@ -23,6 +23,7 @@ import { bangkokDayEnd, bangkokDayStart, toBangkokParts } from "@/lib/date-range
 import { sortByThai } from "@/lib/thai-sort";
 import type { WorkOrderFilters } from "./filters";
 import { allocateWorkOrderNo } from "./numbering";
+import type { RouteOption } from "./route-prices";
 import {
   bangkokDateTime,
   CREATABLE_STATUS_CODES,
@@ -41,36 +42,15 @@ const notDeleted = isNull(workOrders.deletedAt);
 
 // ---------------------------------------------------------------- form options
 
-export type RoutePair = { pickup: string; dropoff: string; prices: string[] };
-
-/** One pair per pickup → drop-off, whatever the vehicle type; prices come from the rates, else the old price. */
-function toRoutePairs(
-  rows: { pickup: string; dropoff: string; legacyPrice: string | null; ratePrice: string | null }[],
-): RoutePair[] {
-  const pairs = new Map<string, { pickup: string; dropoff: string; prices: Set<string> }>();
-  for (const row of rows) {
-    const key = JSON.stringify([row.pickup, row.dropoff]);
-    const pair = pairs.get(key) ?? { pickup: row.pickup, dropoff: row.dropoff, prices: new Set<string>() };
-    const price = row.ratePrice ?? row.legacyPrice;
-    if (price !== null) pair.prices.add(price);
-    pairs.set(key, pair);
-  }
-  // numeric(14,2) strings: compared as numbers for the order only.
-  return [...pairs.values()].map(({ prices, ...pair }) => ({
-    ...pair,
-    prices: [...prices].sort((a, b) => Number(a) - Number(b)),
-  }));
-}
-
 export type WorkOrderFormOptions = {
   customers: { id: number; name: string }[];
   statuses: { code: number; name: string }[];
   /**
-   * Active pickup → drop-off pairs (BR-WO-05, WO-18) with every transport
-   * price they can have: one per fuel price and vehicle type since
-   * 2026-11-28, or a route's old single price. Lowest first, no repeats.
+   * Active routes with their vehicle type and prices by fuel price, in Thai
+   * order of pickup then drop-off (BR-WO-05, WO-18, D38). The form derives
+   * the place suggestions and the transport fee from them (route-prices.ts).
    */
-  routePairs: RoutePair[];
+  routes: RouteOption[];
   vehicleTypes: { id: number; name: string }[];
   drivers: { id: number; name: string; phone: string | null }[];
   vehicles: { id: number; plateNo: string; vehicleTypeId: number }[];
@@ -100,7 +80,7 @@ export async function getWorkOrderFormOptions(
   db: AppDatabase,
   keep: WorkOrderRefs = NO_REFS,
 ): Promise<WorkOrderFormOptions> {
-  const [customerRows, statusRows, routeRows, typeRows, driverRows, vehicleRows] = await Promise.all([
+  const [customerRows, statusRows, routeRows, rateRows, typeRows, driverRows, vehicleRows] = await Promise.all([
     db
       .select({ id: customers.id, name: customers.name, isActive: customers.isActive })
       .from(customers)
@@ -112,14 +92,22 @@ export async function getWorkOrderFormOptions(
       .orderBy(asc(workStatuses.sortOrder)),
     db
       .select({
+        id: routes.id,
         pickup: routes.pickupLocation,
         dropoff: routes.dropoffLocation,
+        vehicleTypeId: routes.vehicleTypeId,
+        vehicleTypeName: vehicleTypes.name,
         legacyPrice: routes.price,
-        ratePrice: routeRates.price,
       })
       .from(routes)
-      .leftJoin(routeRates, eq(routeRates.routeId, routes.id))
+      .leftJoin(vehicleTypes, eq(routes.vehicleTypeId, vehicleTypes.id))
       .where(eq(routes.isActive, true)),
+    db
+      .select({ routeId: routeRates.routeId, fuelPrice: routeRates.fuelPrice, price: routeRates.price })
+      .from(routeRates)
+      .innerJoin(routes, eq(routeRates.routeId, routes.id))
+      .where(eq(routes.isActive, true))
+      .orderBy(asc(routeRates.routeId), asc(routeRates.fuelPrice)),
     db
       .select({
         id: vehicleTypes.id,
@@ -150,14 +138,21 @@ export async function getWorkOrderFormOptions(
       .where(activeOrKept(vehicles, keep.vehicleIds)),
   ]);
 
+  const ratesByRoute = new Map<number, RouteOption["rates"]>();
+  for (const { routeId, fuelPrice, price } of rateRows) {
+    const list = ratesByRoute.get(routeId) ?? [];
+    list.push({ fuelPrice, price });
+    ratesByRoute.set(routeId, list);
+  }
+
   return {
     customers: sortByThai(
       customerRows.map((row) => ({ id: row.id, name: label(row.name, row.isActive) })),
       (row) => row.name,
     ),
     statuses: statusRows,
-    routePairs: sortByThai(
-      toRoutePairs(routeRows),
+    routes: sortByThai(
+      routeRows.map(({ id, ...route }) => ({ ...route, rates: ratesByRoute.get(id) ?? [] })),
       (row) => row.pickup,
       (row) => row.dropoff,
     ),
@@ -254,6 +249,7 @@ function headerValues(input: WorkOrderInput) {
     customerJobNo: input.customerJobNo,
     remark: input.remark,
     transportFee: input.transportFee,
+    fuelPrice: input.fuelPrice,
     portFee: input.portFee,
     demurrageFee: input.demurrageFee,
     overnightNights: input.overnightNights,
@@ -424,6 +420,7 @@ export async function getWorkOrderForEdit(db: AppDatabase, id: number): Promise<
       dropoffContactName: row.dropoffContactName ?? "",
       dropoffContactPhone: row.dropoffContactPhone ?? "",
       transportFee: row.transportFee ?? "",
+      fuelPrice: row.fuelPrice === null ? "" : String(row.fuelPrice),
       vehicles:
         lines.length === 0
           ? [EMPTY_VEHICLE_LINE]
@@ -617,6 +614,8 @@ export type WorkOrderDetail = {
   customerJobNo: string | null;
   remark: string | null;
   transportFee: string | null;
+  /** Fuel price (baht per litre) the fee was looked up at; null when not chosen (D40). */
+  fuelPrice: number | null;
   portFee: string | null;
   demurrageFee: string | null;
   overnightNights: number;
@@ -654,6 +653,7 @@ const detailColumns = {
   customerJobNo: workOrders.customerJobNo,
   remark: workOrders.remark,
   transportFee: workOrders.transportFee,
+  fuelPrice: workOrders.fuelPrice,
   portFee: workOrders.portFee,
   demurrageFee: workOrders.demurrageFee,
   overnightNights: workOrders.overnightNights,

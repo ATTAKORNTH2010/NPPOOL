@@ -79,6 +79,15 @@ describe("create work order form (BR-WO-03..10)", () => {
     expect(workOrderSchema.parse({ ...valid, receiveAt: { date: "", time: "" } }).receiveAt).toBeNull();
   });
 
+  it("keeps the fuel price optional, as whole baht 25–50 (D40)", () => {
+    expect(workOrderSchema.parse(valid).fuelPrice).toBeNull();
+    expect(workOrderSchema.parse({ ...valid, fuelPrice: "30" }).fuelPrice).toBe(30);
+    const range = "ราคาน้ำมันต้องอยู่ระหว่าง 25–50 บาท";
+    expect(messages({ ...valid, fuelPrice: "24" })).toEqual([range]);
+    expect(messages({ ...valid, fuelPrice: "51" })).toEqual([range]);
+    expect(messages({ ...valid, fuelPrice: "30.5" })).toEqual([range]);
+  });
+
   it("reads the form time as Bangkok time", () => {
     expect(bangkokDateTime("2026-11-27T08:30").toISOString()).toBe("2026-11-27T01:30:00.000Z");
   });

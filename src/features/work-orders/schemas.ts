@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FUEL_PRICE_MAX, FUEL_PRICE_MIN } from "@/features/routes/schemas";
 import { WORK_STATUS } from "./statuses";
 
 /**
@@ -28,6 +29,15 @@ function optionalAmount(label: string, pattern = MONEY) {
     .refine((value) => value === "" || pattern.test(value), `${label}ต้องเป็นตัวเลขไม่ติดลบ ทศนิยมไม่เกิน 2 ตำแหน่ง`)
     .transform((value) => (value === "" ? null : value));
 }
+
+/** Fuel price the fee was looked up at (D40): empty, or whole baht in the route price range. */
+const optionalFuelPrice = z
+  .string()
+  .refine(
+    (value) => value === "" || (/^\d{1,3}$/.test(value) && Number(value) >= FUEL_PRICE_MIN && Number(value) <= FUEL_PRICE_MAX),
+    `ราคาน้ำมันต้องอยู่ระหว่าง ${FUEL_PRICE_MIN}–${FUEL_PRICE_MAX} บาท`,
+  )
+  .transform((value) => (value === "" ? null : Number(value)));
 
 const optionalId = z
   .string()
@@ -101,6 +111,7 @@ export const workOrderSchema = z
     dropoffContactName: optionalText(100),
     dropoffContactPhone: optionalText(50),
     transportFee: optionalAmount("ค่าขนส่ง"),
+    fuelPrice: optionalFuelPrice,
     // Empty lines are dropped; at least one line with data is required (BR-WO-07).
     vehicles: z
       .array(vehicleLineSchema)
@@ -150,6 +161,7 @@ export const EMPTY_WORK_ORDER: WorkOrderFormValues = {
   dropoffContactName: "",
   dropoffContactPhone: "",
   transportFee: "",
+  fuelPrice: "",
   vehicles: [EMPTY_VEHICLE_LINE],
   receiveAt: { date: "", time: "" },
   deliveryAt: { date: "", time: "" },

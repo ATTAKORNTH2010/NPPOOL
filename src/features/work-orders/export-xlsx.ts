@@ -57,6 +57,7 @@ const ORDER_COLUMNS: [title: string, width: number, cell: (order: WorkOrderDetai
   ["ผู้ติดต่อ (ฝั่งส่ง)", 18, (o) => text(o.dropoffContactName)],
   ["เบอร์โทร (ฝั่งส่ง)", 15, (o) => text(o.dropoffContactPhone)],
   ["ค่าขนส่ง (บาท)", 14, (o) => money(o.transportFee)],
+  ["ราคาน้ำมัน (บาท/ลิตร)", 12, (o) => (o.fuelPrice === null ? null : { type: Number, value: o.fuelPrice })],
   ["วันเวลารับงาน", 17, (o) => excelDate(o.receiveAt)],
   ["วันเวลาส่งงาน", 17, (o) => excelDate(o.deliveryAt)],
   ["Job No., Shipment", 18, (o) => text(o.customerJobNo)],
