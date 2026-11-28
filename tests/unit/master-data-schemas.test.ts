@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { customerSchema } from "@/features/customers/schemas";
 import { driverSchema } from "@/features/drivers/schemas";
-import { routeSchema } from "@/features/routes/schemas";
+import { FUEL_PRICES, routeDialogSchema, routeRateSchema, routeSchema } from "@/features/routes/schemas";
 import { vehicleTypeSchema } from "@/features/vehicle-types/schemas";
 import { vehicleSchema } from "@/features/vehicles/schemas";
 import { formatTaxId } from "@/lib/format";
@@ -80,19 +80,62 @@ describe("vehicle forms (BR-MD-02, MD-05)", () => {
   });
 });
 
-describe("route form (BR-MD-04)", () => {
-  const valid = { pickupLocation: "ลาดกระบัง", dropoffLocation: "แหลมฉบัง", price: "3,500.50" };
+describe("route form (BR-MD-04, prices by fuel price since 2026-11-28)", () => {
+  const valid = {
+    pickupLocation: "ลาดกระบัง",
+    dropoffLocation: "แหลมฉบัง",
+    vehicleTypeId: "3",
+    rates: [
+      { fuelPrice: "26", price: "3,600" },
+      { fuelPrice: "25", price: "3,500.50" },
+    ],
+  };
 
-  it("accepts commas and keeps two decimals", () => {
-    expect(routeSchema.parse(valid).price).toBe("3500.50");
-    expect(routeSchema.parse({ ...valid, price: "0" }).price).toBe("0");
+  it("offers fuel prices 25 to 50 baht, one baht apart", () => {
+    expect(FUEL_PRICES).toHaveLength(26);
+    expect([FUEL_PRICES[0], FUEL_PRICES[FUEL_PRICES.length - 1]]).toEqual([25, 50]);
   });
 
-  it("rejects negative prices and more than two decimals", () => {
+  it("needs a vehicle type and turns the picked values into numbers", () => {
+    const parsed = routeSchema.parse(valid);
+    expect(parsed.vehicleTypeId).toBe(3);
+    expect(parsed.rates).toEqual([
+      { fuelPrice: 26, price: "3600" },
+      { fuelPrice: 25, price: "3500.50" },
+    ]);
+    expect(messages(routeSchema.safeParse({ ...valid, vehicleTypeId: "" }))).toEqual(["กรุณาเลือกประเภทรถ"]);
+  });
+
+  it("needs at least one price, and each fuel price only once", () => {
+    expect(messages(routeSchema.safeParse({ ...valid, rates: [] }))).toEqual(["กรุณาเพิ่มราคาขนส่งอย่างน้อย 1 ราคา"]);
+    const twice = [
+      { fuelPrice: "25", price: "1" },
+      { fuelPrice: "25", price: "2" },
+    ];
+    expect(messages(routeSchema.safeParse({ ...valid, rates: twice }))).toEqual(["ราคาน้ำมัน 25 บาท มีมากกว่า 1 ราคา"]);
+  });
+
+  it("checks each price as before: commas allowed, no negatives, at most two decimals", () => {
+    const rate = (price: string) => messages(routeRateSchema.safeParse({ fuelPrice: "30", price }));
     const message = "ราคาต้องเป็นตัวเลขไม่ติดลบ ทศนิยมไม่เกิน 2 ตำแหน่ง";
-    expect(messages(routeSchema.safeParse({ ...valid, price: "-1" }))).toEqual([message]);
-    expect(messages(routeSchema.safeParse({ ...valid, price: "1.234" }))).toEqual([message]);
-    expect(messages(routeSchema.safeParse({ ...valid, price: "" }))).toEqual(["กรุณากรอกราคา"]);
+    expect(routeRateSchema.parse({ fuelPrice: "30", price: "0" }).price).toBe("0");
+    expect(rate("-1")).toEqual([message]);
+    expect(rate("1.234")).toEqual([message]);
+    expect(rate("")).toEqual(["กรุณากรอกราคา"]);
+  });
+
+  it("keeps the fuel price within 25–50 baht", () => {
+    const fuel = (fuelPrice: string) => messages(routeRateSchema.safeParse({ fuelPrice, price: "1" }));
+    expect(fuel("24")).toEqual(["ราคาน้ำมันต้องอยู่ระหว่าง 25–50 บาท"]);
+    expect(fuel("51")).toEqual(["ราคาน้ำมันต้องอยู่ระหว่าง 25–50 บาท"]);
+    expect(fuel("")).toEqual(["กรุณาเลือกราคาน้ำมัน"]);
+  });
+
+  it("does not save while a typed price still waits for +", () => {
+    expect(messages(routeDialogSchema.safeParse({ ...valid, draftPrice: "3700" }))).toEqual([
+      "กด + เพื่อเพิ่มราคาที่กรอกไว้ หรือลบออกก่อนบันทึก",
+    ]);
+    expect(routeDialogSchema.safeParse({ ...valid, draftPrice: " " }).success).toBe(true);
   });
 });
 

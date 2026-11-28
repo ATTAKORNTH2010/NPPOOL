@@ -1,6 +1,16 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { customers, drivers, routes, users, vehicles, vehicleTypes, workOrders, workOrderVehicles } from "@/db/schema";
+import {
+  customers,
+  drivers,
+  routeRates,
+  routes,
+  users,
+  vehicles,
+  vehicleTypes,
+  workOrders,
+  workOrderVehicles,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed";
 import {
   EMPTY_VEHICLE_LINE,
@@ -9,6 +19,7 @@ import {
   type WorkOrderFormValues,
 } from "@/features/work-orders/schemas";
 import { EMPTY_WORK_ORDER_FILTERS } from "@/features/work-orders/filters";
+import { routePairs } from "@/features/work-orders/route-prices";
 import * as service from "@/features/work-orders/service";
 import { WORK_STATUS } from "@/features/work-orders/statuses";
 import { RuleError } from "@/lib/action-result";
@@ -86,7 +97,32 @@ describe("form options", () => {
     expect(options.customers.map((c) => c.name)).toEqual(["บริษัท ทดสอบ จำกัด"]);
     expect(options.statuses.some((s) => s.code === WORK_STATUS.CANCELLED)).toBe(false);
     expect(options.drivers).toEqual([{ id: ids.driver, name: "สมชาย ขับดี", phone: "089-111-2222" }]);
-    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", price: "3500.00" }]);
+    expect(options.routes).toEqual([
+      { pickup: "คลัง A", dropoff: "โรงงาน B", vehicleTypeId: null, vehicleTypeName: null, rates: [], legacyPrice: "3500.00" },
+    ]);
+  });
+
+  it("gives each pair every price it can have, across vehicle types and fuel prices (2026-11-28)", async () => {
+    const audit = { createdBy: actor, updatedBy: actor };
+    const [byFuel] = await db
+      .insert(routes)
+      .values({ pickupLocation: "คลัง A", dropoffLocation: "โรงงาน B", vehicleTypeId: ids.type, ...audit })
+      .returning({ id: routes.id });
+    await db.insert(routeRates).values([
+      { routeId: byFuel!.id, fuelPrice: 26, price: "3700" },
+      { routeId: byFuel!.id, fuelPrice: 25, price: "3500" },
+    ]);
+    await db.insert(routes).values({ pickupLocation: "คลัง A", dropoffLocation: "ท่าเรือ C", price: "900", isActive: false, ...audit });
+
+    const options = await service.getWorkOrderFormOptions(db);
+    expect(options.routes.find((route) => route.vehicleTypeId === ids.type)).toMatchObject({
+      vehicleTypeName: "6 ล้อ",
+      rates: [
+        { fuelPrice: 25, price: "3500.00" },
+        { fuelPrice: 26, price: "3700.00" },
+      ],
+    });
+    expect(routePairs(options.routes)).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", prices: ["3500.00", "3700.00"] }]);
   });
 });
 
@@ -109,6 +145,18 @@ describe("creating work orders (WO-01..09)", () => {
     const lines = await db.select().from(workOrderVehicles).where(eq(workOrderVehicles.workOrderId, created.id));
     expect(lines).toHaveLength(1); // the empty line was not saved
     expect(lines[0]).toMatchObject({ lineNo: 1, driverPhone: "089-111-2222", quantity: "10.00", quantityUnit: "พาเลท" });
+  });
+
+  it("saves the fuel price the fee was looked up at, and reads it back (D40)", async () => {
+    const created = await create(form({ fuelPrice: "30" }));
+    const [header] = await db.select().from(workOrders).where(eq(workOrders.id, created.id));
+    expect(header?.fuelPrice).toBe(30);
+    expect((await service.getWorkOrder(db, created.id))?.fuelPrice).toBe(30);
+    expect((await service.getWorkOrderForEdit(db, created.id))?.values.fuelPrice).toBe("30");
+
+    const without = await create(form());
+    expect((await service.getWorkOrderForEdit(db, without.id))?.values.fuelPrice).toBe("");
+    await expect(db.update(workOrders).set({ fuelPrice: 51 }).where(eq(workOrders.id, created.id))).rejects.toThrow();
   });
 
   it("keeps the driver's phone as it was when the work order was saved (BR-WO-08)", async () => {

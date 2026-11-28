@@ -3,7 +3,7 @@ import { vehicles, vehicleTypes } from "@/db/schema";
 import type { AppDatabase } from "@/db/types";
 import type { DeleteInput, SetActiveInput } from "@/features/master-data/schemas";
 import { assertFound, deleteOrExplain, withUniqueMessage } from "@/features/master-data/service-helpers";
-import { RuleError } from "@/lib/action-result";
+import { assertUsableVehicleType } from "@/features/vehicle-types/service";
 import { sortByThai } from "@/lib/thai-sort";
 import type { UpdateVehicleInput, VehicleInput } from "./schemas";
 
@@ -32,18 +32,8 @@ export async function listVehicles(db: AppDatabase): Promise<VehicleRow[]> {
   return sortByThai(rows, (row) => row.plateNo);
 }
 
-/** A new or changed vehicle type must exist and be in use. */
-async function assertUsableType(db: AppDatabase, vehicleTypeId: number) {
-  const [type] = await db
-    .select({ isActive: vehicleTypes.isActive })
-    .from(vehicleTypes)
-    .where(eq(vehicleTypes.id, vehicleTypeId))
-    .limit(1);
-  if (!type || !type.isActive) throw new RuleError("กรุณาเลือกประเภทรถที่ใช้งานอยู่");
-}
-
 export async function createVehicle(db: AppDatabase, actorId: string, input: VehicleInput) {
-  await assertUsableType(db, input.vehicleTypeId);
+  await assertUsableVehicleType(db, input.vehicleTypeId);
   await withUniqueMessage(DUPLICATE_PLATE, () =>
     db.insert(vehicles).values({ ...input, createdBy: actorId, updatedBy: actorId }),
   );
@@ -57,7 +47,7 @@ export async function updateVehicle(db: AppDatabase, actorId: string, { id, ...i
     .limit(1);
   assertFound(current ? [current] : []);
   // Keeping a type that was deactivated later is fine; switching to one is not.
-  if (current && current.vehicleTypeId !== input.vehicleTypeId) await assertUsableType(db, input.vehicleTypeId);
+  if (current && current.vehicleTypeId !== input.vehicleTypeId) await assertUsableVehicleType(db, input.vehicleTypeId);
   assertFound(
     await withUniqueMessage(DUPLICATE_PLATE, () =>
       db

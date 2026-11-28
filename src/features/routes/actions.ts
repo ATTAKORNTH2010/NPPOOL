@@ -14,23 +14,45 @@ import * as service from "./service";
 
 const permission = "masterData.manage";
 const log = masterDataActivity("routes", "สถานที่รับ-ส่ง");
-const pair = (data: RouteInput) => `${data.pickupLocation} → ${data.dropoffLocation} (${data.price} บาท)`;
+
+/** e.g. "ลาดกระบัง → แหลมฉบัง · รถ 6 ล้อ · 3 ราคา (น้ำมัน 25–27 บาท)" */
+function routeSummary(data: RouteInput, saved: service.SavedRoute): string {
+  const fuels = data.rates.map((rate) => rate.fuelPrice).sort((a, b) => a - b);
+  const range = fuels.length > 1 ? `${fuels[0]}–${fuels[fuels.length - 1]}` : `${fuels[0]}`;
+  return `${data.pickupLocation} → ${data.dropoffLocation} · ${saved.vehicleTypeName} · ${fuels.length} ราคา (น้ำมัน ${range} บาท)`;
+}
 
 export async function createRouteAction(input: RouteFormValues) {
-  return runAction(
-    { permission, schema: routeSchema, input, success: "เพิ่มสถานที่รับ-ส่งแล้ว", activity: log.create(pair) },
+  return runAction<RouteInput, service.SavedRoute>(
+    {
+      permission,
+      schema: routeSchema,
+      input,
+      success: "เพิ่มสถานที่รับ-ส่งแล้ว",
+      activity: {
+        module: "routes",
+        action: "create",
+        entityId: (_data, saved) => saved.id,
+        detail: (data, saved) => `เพิ่มสถานที่รับ-ส่ง ${routeSummary(data, saved)}`,
+      },
+    },
     (ctx, data) => service.createRoute(ctx.db, ctx.actorId, data),
   );
 }
 
 export async function updateRouteAction(input: RouteFormValues & { id: number }) {
-  return runAction(
+  return runAction<UpdateRouteInput, service.SavedRoute>(
     {
       permission,
       schema: updateRouteSchema,
       input,
       success: "บันทึกสถานที่รับ-ส่งแล้ว",
-      activity: log.update((data: UpdateRouteInput) => pair(data)),
+      activity: {
+        module: "routes",
+        action: "update",
+        entityId: (data) => data.id,
+        detail: (data, saved) => `แก้ไขสถานที่รับ-ส่ง ${routeSummary(data, saved)}`,
+      },
     },
     (ctx, data) => service.updateRoute(ctx.db, ctx.actorId, data),
   );

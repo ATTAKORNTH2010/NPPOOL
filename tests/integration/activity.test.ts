@@ -3,9 +3,11 @@ import { users } from "@/db/schema";
 import { ACTIVITY_RETENTION_MONTHS } from "@/features/activity/catalog";
 import {
   listActivity,
+  PAGE_VIEW_REPEAT_MINUTES,
   parseActivityFilters,
   purgeExpiredActivity,
   recordActivity,
+  recordPageView,
   summarizeActivity,
 } from "@/features/activity/service";
 import { createTestDb, type TestDb } from "./test-db";
@@ -122,5 +124,25 @@ describe("activity log", () => {
     expect(left.rows.map((row) => row.detail)).toEqual(["ยังอยู่ในช่วงเก็บ"]);
     expect((await listActivity(db, parseActivityFilters({}), 1)).total).toBe(6);
     expect(await purgeExpiredActivity(db, now)).toBe(0);
+  });
+
+  it(`counts a page once per user within ${PAGE_VIEW_REPEAT_MINUTES} minutes, whoever used the browser before`, async () => {
+    const view = (userId: string, path: string, iso: string) =>
+      recordPageView(db, { userId, module: "workOrders", action: "view", path, occurredAt: new Date(iso) });
+    // Admin-then-maker in the same tab used to hide the maker's views (the browser de-duplicated by path only).
+    expect(await view("u-a", "/work-orders/new", "2026-11-28T03:00:00Z")).toBe(true);
+    expect(await view("u-b", "/work-orders/new", "2026-11-28T03:01:00Z")).toBe(true);
+    expect(await view("u-a", "/work-orders/new", "2026-11-28T03:04:59Z")).toBe(false);
+    expect(await view("u-a", "/work-orders", "2026-11-28T03:02:00Z")).toBe(true);
+    expect(await view("u-a", "/work-orders/new", "2026-11-28T03:05:01Z")).toBe(true);
+
+    const filters = parseActivityFilters({ action: "view", from: "2026-11-28", to: "2026-11-28" });
+    const { rows } = await listActivity(db, filters, 1);
+    expect(rows.map((row) => [row.username, row.path])).toEqual([
+      ["kamon", "/work-orders/new"],
+      ["kamon", "/work-orders"],
+      ["khwanjai", "/work-orders/new"],
+      ["kamon", "/work-orders/new"],
+    ]);
   });
 });

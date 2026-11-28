@@ -1,0 +1,2 @@
+ALTER TABLE "work_orders" ADD COLUMN "fuel_price" smallint;--> statement-breakpoint
+ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_fuel_price_check" CHECK ("work_orders"."fuel_price" is null or "work_orders"."fuel_price" between 25 and 50);

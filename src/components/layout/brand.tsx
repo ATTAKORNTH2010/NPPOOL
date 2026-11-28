@@ -3,8 +3,8 @@ import { SITE } from "@/config/site";
 
 /**
  * Compact brand mark for the sidebar. The company logo (./logo.tsx) is a wide
- * 215×81 banner that does not fit the collapsed icon rail, so the sidebar keeps
- * this square icon; the login page and the printed job order show the logo.
+ * picture on white that does not fit the collapsed icon rail, so the sidebar
+ * keeps this square icon; the login page and the printed job order show the logo.
  */
 export function Brand() {
   return (

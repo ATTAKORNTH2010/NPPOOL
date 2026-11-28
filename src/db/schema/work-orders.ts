@@ -59,6 +59,11 @@ export const workOrders = pgTable(
     customerJobNo: text("customer_job_no"),
     remark: text("remark"),
     transportFee: money("transport_fee"),
+    /**
+     * Diesel price (whole baht per litre, 25–50) the transport fee was looked
+     * up at in the route's price list (D40, 2026-11-28); null when not chosen.
+     */
+    fuelPrice: smallint("fuel_price"),
     portFee: money("port_fee"),
     demurrageFee: money("demurrage_fee"),
     overnightNights: smallint("overnight_nights").notNull().default(0),
@@ -84,6 +89,8 @@ export const workOrders = pgTable(
       "work_orders_fees_check",
       sql`coalesce(${t.transportFee}, 0) >= 0 and coalesce(${t.portFee}, 0) >= 0 and coalesce(${t.demurrageFee}, 0) >= 0 and coalesce(${t.overnightLaborFee}, 0) >= 0 and coalesce(${t.extraWorkerFee}, 0) >= 0`,
     ),
+    // Same range as route_rates.fuel_price.
+    check("work_orders_fuel_price_check", sql`${t.fuelPrice} is null or ${t.fuelPrice} between 25 and 50`),
     check("work_orders_overnight_nights_check", sql`${t.overnightNights} between 0 and 15`),
     check("work_orders_extra_workers_check", sql`${t.extraWorkers} between 0 and 15`),
     check(

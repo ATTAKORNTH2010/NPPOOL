@@ -17,7 +17,10 @@ export default function LoginPage() {
         <RedirectIfSignedIn />
       </Suspense>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <Logo className="self-center" />
+        {/* The logo has a white background: a white badge keeps it tidy in dark mode too. */}
+        <div className="self-center rounded-xl bg-white px-4 py-2 shadow-sm ring-1 ring-foreground/10">
+          <Logo className="h-24 w-auto" />
+        </div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">เข้าสู่ระบบ</CardTitle>

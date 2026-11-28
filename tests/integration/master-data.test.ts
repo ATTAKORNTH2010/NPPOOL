@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { routes, users, workOrders } from "@/db/schema";
+import { routeRates, routes, users, workOrders } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed";
 import { customerSchema } from "@/features/customers/schemas";
 import * as customersService from "@/features/customers/service";
 import { driverSchema } from "@/features/drivers/schemas";
 import * as driversService from "@/features/drivers/service";
-import { routeSchema } from "@/features/routes/schemas";
+import { routeSchema, type RouteFormValues } from "@/features/routes/schemas";
 import * as routesService from "@/features/routes/service";
 import { vehicleTypeSchema } from "@/features/vehicle-types/schemas";
 import * as vehicleTypesService from "@/features/vehicle-types/service";
@@ -138,17 +138,95 @@ describe("drivers", () => {
   });
 });
 
-describe("routes", () => {
-  it("lists newest first with the exact price, and can always be deleted", async () => {
-    await routesService.createRoute(db, actor, routeSchema.parse({ pickupLocation: "ลาดกระบัง", dropoffLocation: "แหลมฉบัง", price: "3,500.50" }));
-    await routesService.createRoute(db, actor, routeSchema.parse({ pickupLocation: "บางนา", dropoffLocation: "ระยอง", price: "4200" }));
+describe("routes (vehicle type and prices by fuel price, 2026-11-28)", () => {
+  const typeId = async (code: string) =>
+    String((await vehicleTypesService.listVehicleTypes(db)).find((row) => row.code === code)!.id);
+  const route = (values: Partial<RouteFormValues>) =>
+    routeSchema.parse({
+      pickupLocation: "ลาดกระบัง",
+      dropoffLocation: "แหลมฉบัง",
+      vehicleTypeId: "",
+      rates: [
+        { fuelPrice: "26", price: "3,600" },
+        { fuelPrice: "25", price: "3,500.50" },
+      ],
+      ...values,
+    });
+
+  it("saves the vehicle type with the prices: newest route first, lowest fuel price first", async () => {
+    const tenWheel = await typeId("10W");
+    const saved = await routesService.createRoute(db, actor, route({ vehicleTypeId: tenWheel }));
+    expect(saved.vehicleTypeName).toBe("รถ 10 ล้อ");
+    await routesService.createRoute(
+      db,
+      actor,
+      route({ pickupLocation: "บางนา", dropoffLocation: "ระยอง", vehicleTypeId: tenWheel, rates: [{ fuelPrice: "30", price: "4200" }] }),
+    );
     const list = await routesService.listRoutes(db);
-    expect(list.map((row) => [row.pickupLocation, row.price])).toEqual([
-      ["บางนา", "4200.00"],
-      ["ลาดกระบัง", "3500.50"],
+    expect(list.map((row) => [row.pickupLocation, row.vehicleTypeName, row.legacyPrice, row.rates])).toEqual([
+      ["บางนา", "รถ 10 ล้อ", null, [{ fuelPrice: 30, price: "4200.00" }]],
+      [
+        "ลาดกระบัง",
+        "รถ 10 ล้อ",
+        null,
+        [
+          { fuelPrice: 25, price: "3500.50" },
+          { fuelPrice: 26, price: "3600.00" },
+        ],
+      ],
     ]);
-    await routesService.deleteRoute(db, { id: list[0]!.id });
-    expect(await routesService.listRoutes(db)).toHaveLength(1);
+  });
+
+  it("refuses a deactivated vehicle type for a new route", async () => {
+    await expect(routesService.createRoute(db, actor, route({ vehicleTypeId: await typeId("4W") }))).rejects.toThrow(
+      new RuleError("กรุณาเลือกประเภทรถที่ใช้งานอยู่"),
+    );
+  });
+
+  it("turns an old single-price route into the new kind and replaces the whole price list on save", async () => {
+    // Saved before 2026-11-28: one price, no vehicle type, no prices by fuel price.
+    const [old] = await db
+      .insert(routes)
+      .values({ pickupLocation: "คลัง A", dropoffLocation: "โรงงาน B", price: "3000.00", createdBy: actor, updatedBy: actor })
+      .returning({ id: routes.id });
+    const find = async () => (await routesService.listRoutes(db)).find((row) => row.id === old!.id);
+    expect(await find()).toMatchObject({ vehicleTypeId: null, vehicleTypeName: null, legacyPrice: "3000.00", rates: [] });
+
+    const tenWheel = await typeId("10W");
+    const edit = (rates: { fuelPrice: string; price: string }[]) =>
+      routesService.updateRoute(db, actor, {
+        ...route({ pickupLocation: "คลัง A", dropoffLocation: "โรงงาน B", vehicleTypeId: tenWheel, rates }),
+        id: old!.id,
+      });
+    await edit([
+      { fuelPrice: "40", price: "3000" },
+      { fuelPrice: "41", price: "3100" },
+    ]);
+    expect(await find()).toMatchObject({ vehicleTypeName: "รถ 10 ล้อ", legacyPrice: null, rates: [{ fuelPrice: 40 }, { fuelPrice: 41 }] });
+
+    await edit([{ fuelPrice: "41", price: "3150" }]);
+    expect((await find())?.rates).toEqual([{ fuelPrice: 41, price: "3150.00" }]);
+    expect((await db.select().from(routeRates).where(eq(routeRates.routeId, old!.id))).length).toBe(1);
+  });
+
+  it("lets a route keep a vehicle type deactivated later, and that type cannot be deleted", async () => {
+    await vehicleTypesService.createVehicleType(db, actor, vehicleTypeSchema.parse({ code: "6w", name: "รถ 6 ล้อ", sortOrder: "2" }));
+    const sixWheel = await typeId("6W");
+    const saved = await routesService.createRoute(db, actor, route({ pickupLocation: "สระบุรี", vehicleTypeId: sixWheel }));
+    await vehicleTypesService.setVehicleTypeActive(db, actor, { id: Number(sixWheel), active: false });
+
+    await routesService.updateRoute(db, actor, { ...route({ pickupLocation: "สระบุรี", vehicleTypeId: sixWheel }), id: saved.id });
+    await expect(
+      routesService.updateRoute(db, actor, { ...route({ pickupLocation: "สระบุรี", vehicleTypeId: await typeId("4W") }), id: saved.id }),
+    ).rejects.toThrow(RuleError);
+    await expect(vehicleTypesService.deleteVehicleType(db, { id: Number(sixWheel) })).rejects.toThrow(IN_USE);
+  });
+
+  it("deletes a route together with its prices", async () => {
+    const [newest] = await routesService.listRoutes(db);
+    await routesService.deleteRoute(db, { id: newest!.id });
+    expect((await routesService.listRoutes(db)).some((row) => row.id === newest!.id)).toBe(false);
+    expect(await db.select().from(routeRates).where(eq(routeRates.routeId, newest!.id))).toEqual([]);
   });
 
   it("records the editor on every change", async () => {

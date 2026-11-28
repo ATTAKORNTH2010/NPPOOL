@@ -110,6 +110,7 @@ async function WorkOrderContent({ params }: Pick<PageProps<"/work-orders/[id]">,
         <Detail label="ผู้ติดต่อ (ฝั่งส่ง)" value={order.dropoffContactName} />
         <Detail label="เบอร์โทร (ฝั่งส่ง)" value={order.dropoffContactPhone} />
         <Detail label="ค่าขนส่ง (บาท)" value={formatMoney(order.transportFee)} />
+        <Detail label="ราคาน้ำมัน (บาท/ลิตร)" value={order.fuelPrice === null ? null : String(order.fuelPrice)} />
       </DetailCard>
 
       <Card>

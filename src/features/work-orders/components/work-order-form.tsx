@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { Check, CircleAlert, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useLayoutEffect, useState } from "react";
@@ -18,8 +18,10 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FUEL_PRICES } from "@/features/routes/schemas";
 import { formatMoney } from "@/lib/format";
 import { createWorkOrderAction, updateWorkOrderAction } from "../actions";
+import { feeOptions, isKnownPair, routePairs, singlePrice, type RouteOption } from "../route-prices";
 import {
   EMPTY_VEHICLE_LINE,
   EMPTY_WORK_ORDER,
@@ -305,31 +307,54 @@ function CountField({
   );
 }
 
+/** "3,500.00 บาท", or "3,500.00–4,200.00 บาท" when the price depends on fuel price or vehicle type. */
+function priceHint(prices: string[]): string | undefined {
+  const low = prices[0];
+  const high = prices[prices.length - 1];
+  if (low === undefined || high === undefined) return undefined;
+  return low === high ? `${formatMoney(low)} บาท` : `${formatMoney(low)}–${formatMoney(high)} บาท`;
+}
+
 /**
- * BR-WO-05 + WO-18 (user request 2026-11-27): the pickup list comes from the
- * route list; once a known pickup is chosen, the drop-off list shows only the
- * places paired with it, each with its price, and picking one fills ค่าขนส่ง
- * (still editable). Free text stays allowed on both sides.
+ * BR-WO-05 + WO-18 (user requests 2026-11-27 and 2026-11-28: D29, D38, D40):
+ * the pickup list comes from the route list; once a known pickup is chosen,
+ * the drop-off list shows only the places paired with it, with their price or
+ * price range. ราคาน้ำมัน picks the column of the routes' price lists: picking
+ * a drop-off or a fuel price fills ค่าขนส่ง (still editable) when exactly one
+ * price fits, otherwise the prices that fit are offered under the fee. Vehicle
+ * types already on the work order narrow them. Free text stays allowed.
  */
 function PlacesSection({ form, options }: { form: Form; options: WorkOrderFormOptions }) {
   const pickup = useWatch({ control: form.control, name: "pickupLocation" }).trim();
+  const dropoff = useWatch({ control: form.control, name: "dropoffLocation" }).trim();
+  const fuel = useWatch({ control: form.control, name: "fuelPrice" });
+  const lines = useWatch({ control: form.control, name: "vehicles" });
 
+  const pairs = routePairs(options.routes);
   const routeCounts = new Map<string, number>();
-  for (const pair of options.routePairs) routeCounts.set(pair.pickup, (routeCounts.get(pair.pickup) ?? 0) + 1);
-  const pickupSuggestions: Suggestion[] = [...routeCounts].map(([place, routes]) => ({
+  for (const pair of pairs) routeCounts.set(pair.pickup, (routeCounts.get(pair.pickup) ?? 0) + 1);
+  const pickupSuggestions: Suggestion[] = [...routeCounts].map(([place, count]) => ({
     value: place,
-    hint: `${routes} ปลายทาง`,
+    hint: `${count} ปลายทาง`,
   }));
 
-  const paired = options.routePairs.filter((pair) => pair.pickup === pickup);
+  const paired = pairs.filter((pair) => pair.pickup === pickup);
   const dropoffSuggestions: Suggestion[] =
     paired.length > 0
-      ? paired.map((pair) => ({ value: pair.dropoff, hint: `${formatMoney(pair.price)} บาท` }))
-      : unique(options.routePairs.map((pair) => pair.dropoff)).map((place) => ({ value: place }));
+      ? paired.map((pair) => ({ value: pair.dropoff, hint: priceHint(pair.prices) }))
+      : unique(pairs.map((pair) => pair.dropoff)).map((place) => ({ value: place }));
 
-  function pickDropoff(dropoff: string) {
-    const route = paired.find((pair) => pair.dropoff === dropoff);
-    if (route) form.setValue("transportFee", route.price, { shouldDirty: true, shouldValidate: true });
+  const vehicleTypeIds = lines.map((line) => Number(line.vehicleTypeId)).filter((id) => id > 0);
+  const fuelPrice = fuel ? Number(fuel) : null;
+
+  function fill(price: string) {
+    form.setValue("transportFee", price, { shouldDirty: true, shouldValidate: true });
+  }
+
+  /** Fills ค่าขนส่ง when exactly one price fits these places at this fuel price. */
+  function fillIfSingle(places: { pickup: string; dropoff: string }, atFuelPrice: number | null) {
+    const price = singlePrice(feeOptions(options.routes, { ...places, fuelPrice: atFuelPrice, vehicleTypeIds }));
+    if (price !== null) fill(price);
   }
 
   return (
@@ -342,12 +367,130 @@ function PlacesSection({ form, options }: { form: Form; options: WorkOrderFormOp
         name="dropoffLocation"
         label="สถานที่ส่ง"
         suggestions={dropoffSuggestions}
-        onPick={pickDropoff}
+        onPick={(place) => fillIfSingle({ pickup, dropoff: place }, fuelPrice)}
         description={paired.length > 0 ? `แสดงเฉพาะปลายทางของ “${pickup}” พร้อมราคา` : undefined}
       />
       <TextField control={form.control} name="dropoffContactName" label="ชื่อผู้ติดต่อ (ฝั่งส่ง)" />
       <TextField control={form.control} name="dropoffContactPhone" label="เบอร์โทร (ฝั่งส่ง)" type="tel" inputMode="tel" />
-      <MoneyField control={form.control} name="transportFee" label="ค่าขนส่ง (บาท)" />
+      <FuelPriceField control={form.control} onPick={(value) => fillIfSingle({ pickup, dropoff }, value)} />
+      <div className="grid content-start gap-2">
+        <MoneyField control={form.control} name="transportFee" label="ค่าขนส่ง (บาท)" />
+        <FeeOptions
+          form={form}
+          routes={options.routes}
+          query={{ pickup, dropoff, fuelPrice, vehicleTypeIds }}
+          onPick={fill}
+        />
+      </div>
+    </div>
+  );
+}
+
+const FUEL_ITEMS = [
+  { value: "", label: "— ไม่ระบุ —" },
+  ...FUEL_PRICES.map((fuelPrice) => ({ value: String(fuelPrice), label: String(fuelPrice) })),
+];
+
+/** ราคาน้ำมัน 25–50 (D40): saved with the work order; choosing one looks up ค่าขนส่ง. */
+function FuelPriceField({ control, onPick }: { control: FormControl; onPick: (fuelPrice: number) => void }) {
+  const id = useId();
+  return (
+    <Controller
+      name="fuelPrice"
+      control={control}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid}>
+          <FieldLabel htmlFor={id}>ราคาน้ำมัน (บาท/ลิตร)</FieldLabel>
+          <Select
+            items={FUEL_ITEMS}
+            value={field.value}
+            onValueChange={(value) => {
+              const next = value ?? "";
+              field.onChange(next);
+              if (next) onPick(Number(next));
+            }}
+          >
+            <SelectTrigger id={id} className="w-full" aria-invalid={fieldState.invalid}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FUEL_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>ใช้หาค่าขนส่งจากตารางราคาของสถานที่รับ-ส่ง</FieldDescription>
+          <FieldError errors={[fieldState.error]} />
+        </Field>
+      )}
+    />
+  );
+}
+
+/** Same amount, whatever the commas or trailing zeros ("3,500" = "3500.00"); display only. */
+const sameAmount = (price: string, typed: string) =>
+  typed.trim() !== "" && Number(typed.replace(/,/g, "")) === Number(price);
+
+/** The prices from the price list that fit, as buttons that fill ค่าขนส่ง. */
+function FeeOptions({
+  form,
+  routes,
+  query,
+  onPick,
+}: {
+  form: Form;
+  routes: RouteOption[];
+  query: { pickup: string; dropoff: string; fuelPrice: number | null; vehicleTypeIds: number[] };
+  onPick: (price: string) => void;
+}) {
+  const fee = useWatch({ control: form.control, name: "transportFee" });
+  if (!query.pickup || !query.dropoff || !isKnownPair(routes, query.pickup, query.dropoff)) return null;
+
+  const choices = feeOptions(routes, query);
+  const byFuel = routes.some(
+    (route) => route.pickup === query.pickup && route.dropoff === query.dropoff && route.rates.length > 0,
+  );
+  if (query.fuelPrice === null && byFuel) {
+    // One price whatever the fuel price: it was filled on pick, nothing to ask.
+    if (singlePrice(choices) !== null) return null;
+    return <p className="text-sm text-muted-foreground">ราคาขึ้นกับราคาน้ำมัน — เลือกราคาน้ำมันเพื่อเติมค่าขนส่ง</p>;
+  }
+
+  if (choices.length === 0) {
+    if (query.fuelPrice === null) return null;
+    return (
+      <p className="text-sm text-muted-foreground">
+        ยังไม่มีราคาที่ราคาน้ำมัน {query.fuelPrice} บาทสำหรับคู่สถานที่นี้ — กรอกค่าขนส่งเอง
+      </p>
+    );
+  }
+  // Old single-price routes without a fuel price: one price is filled on pick already.
+  if (query.fuelPrice === null && singlePrice(choices) !== null) return null;
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-sm text-muted-foreground">
+        {query.fuelPrice === null ? "ราคาของคู่สถานที่นี้" : `ราคาตามตาราง (น้ำมัน ${query.fuelPrice} บาท)`} กดเพื่อใช้
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {choices.map((choice) => {
+          const inUse = sameAmount(choice.price, fee);
+          return (
+            <Button
+              key={`${choice.vehicleTypeName ?? ""}|${choice.price}`}
+              type="button"
+              size="xs"
+              variant={inUse ? "secondary" : "outline"}
+              aria-pressed={inUse}
+              onClick={() => onPick(choice.price)}
+            >
+              {inUse ? <Check /> : null}
+              {choice.vehicleTypeName ?? "ราคาเดิม"} · {formatMoney(choice.price)}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }
