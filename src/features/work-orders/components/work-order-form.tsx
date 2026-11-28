@@ -448,15 +448,18 @@ function FeeOptions({
   const fee = useWatch({ control: form.control, name: "transportFee" });
   if (!query.pickup || !query.dropoff || !isKnownPair(routes, query.pickup, query.dropoff)) return null;
 
+  const choices = feeOptions(routes, query);
   const byFuel = routes.some(
     (route) => route.pickup === query.pickup && route.dropoff === query.dropoff && route.rates.length > 0,
   );
   if (query.fuelPrice === null && byFuel) {
+    // One price whatever the fuel price: it was filled on pick, nothing to ask.
+    if (singlePrice(choices) !== null) return null;
     return <p className="text-sm text-muted-foreground">ราคาขึ้นกับราคาน้ำมัน — เลือกราคาน้ำมันเพื่อเติมค่าขนส่ง</p>;
   }
 
-  const choices = feeOptions(routes, query);
   if (choices.length === 0) {
+    if (query.fuelPrice === null) return null;
     return (
       <p className="text-sm text-muted-foreground">
         ยังไม่มีราคาที่ราคาน้ำมัน {query.fuelPrice} บาทสำหรับคู่สถานที่นี้ — กรอกค่าขนส่งเอง
