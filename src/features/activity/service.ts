@@ -46,6 +46,36 @@ export async function recordActivity(db: AppDatabase, entry: ActivityEntry): Pro
 }
 
 /**
+ * Opening the same page again within this many minutes counts once (ADR-0012).
+ * The check runs on the server, per user: one browser tab can be used by
+ * several people in turn (sign out → sign in), so the browser cannot do it.
+ */
+export const PAGE_VIEW_REPEAT_MINUTES = 5;
+
+export type PageView = ActivityEntry & { userId: string; path: string };
+
+/** Writes a page view unless the same user opened the same path within the repeat window. True when written. */
+export async function recordPageView(db: AppDatabase, view: PageView): Promise<boolean> {
+  const at = view.occurredAt ?? new Date();
+  const since = new Date(at.getTime() - PAGE_VIEW_REPEAT_MINUTES * 60_000);
+  const [recent] = await db
+    .select({ id: activityLogs.id })
+    .from(activityLogs)
+    .where(
+      and(
+        eq(activityLogs.userId, view.userId),
+        eq(activityLogs.action, view.action),
+        eq(activityLogs.path, view.path),
+        gte(activityLogs.occurredAt, since),
+      ),
+    )
+    .limit(1);
+  if (recent) return false;
+  await recordActivity(db, { ...view, occurredAt: at });
+  return true;
+}
+
+/**
  * Deletes entries older than the retention window and returns how many went.
  * They are an audit trail, not business rows, so ADR-0010's no-hard-delete
  * rule does not cover them (ADR-0012).

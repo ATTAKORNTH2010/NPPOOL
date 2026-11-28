@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 import { db } from "@/db/client";
 import { requestInfo } from "./request-info";
-import { purgeExpiredActivity, recordActivity, type ActivityEntry } from "./service";
+import { purgeExpiredActivity, recordActivity, recordPageView, type ActivityEntry, type PageView } from "./service";
 
 /**
  * Entries past the retention window are purged while the app is in use, at
@@ -23,14 +23,13 @@ async function purgeIfDue(): Promise<void> {
 const errorName = (error: unknown) => (error instanceof Error ? error.name : "unknown error");
 
 /**
- * Writes the entry after the response is sent, so logging never slows the
- * user down and a logging failure never breaks the action itself (ADR-0012).
+ * Runs the write after the response is sent, so logging never slows the user
+ * down and a logging failure never breaks the action itself (ADR-0012).
  */
-export function logActivity(entry: Omit<ActivityEntry, "ipAddress" | "userAgent">, headers: Headers): void {
-  const info = requestInfo(headers);
+function writeLater(write: () => Promise<unknown>): void {
   after(async () => {
     try {
-      await recordActivity(db, { ...entry, ...info });
+      await write();
     } catch (error) {
       console.error("[activity] not recorded:", errorName(error));
     }
@@ -40,4 +39,15 @@ export function logActivity(entry: Omit<ActivityEntry, "ipAddress" | "userAgent"
       console.error("[activity] old entries not purged:", errorName(error));
     }
   });
+}
+
+export function logActivity(entry: Omit<ActivityEntry, "ipAddress" | "userAgent">, headers: Headers): void {
+  const info = requestInfo(headers);
+  writeLater(() => recordActivity(db, { ...entry, ...info }));
+}
+
+/** A page view: skipped when the same user opened the same page a few minutes ago (service.ts). */
+export function logPageView(view: Omit<PageView, "ipAddress" | "userAgent">, headers: Headers): void {
+  const info = requestInfo(headers);
+  writeLater(() => recordPageView(db, { ...view, ...info }));
 }
