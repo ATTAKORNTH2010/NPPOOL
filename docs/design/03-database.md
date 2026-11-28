@@ -30,6 +30,8 @@ erDiagram
     vehicles ||--o{ work_order_vehicles : "vehicle_id"
     vehicle_types ||--o{ vehicles : "vehicle_type_id"
     routes ||..o{ work_orders : "คัดลอกชื่อสถานที่"
+    vehicle_types ||--o{ routes : "vehicle_type_id"
+    routes ||--o{ route_rates : "route_id"
     work_order_counters ||..o{ work_orders : "ออกเลขที่ต่อเดือน"
     users ||--o{ work_orders : "ผู้สร้าง ผู้แก้ไข ผู้ยกเลิก"
     users ||--o{ sessions : "user_id"
@@ -86,8 +88,15 @@ erDiagram
         int id PK
         text pickup_location
         text dropoff_location
+        int vehicle_type_id
         numeric price
         bool is_active
+    }
+    route_rates {
+        int id PK
+        int route_id
+        smallint fuel_price
+        numeric price
     }
     work_statuses {
         smallint code PK
@@ -157,7 +166,8 @@ erDiagram
 | `drivers` | `first_name` text not null · `last_name` text not null · `phone` text | — | (`first_name`, `last_name`) |
 | `vehicle_types` | `code` text not null · `name` text not null · `sort_order` smallint default 0 | unique `code` | — |
 | `vehicles` | `plate_no` text not null · `vehicle_type_id` integer not null FK | **unique `plate_no`** (ตัดช่องว่างหัวท้ายก่อนบันทึก) | `vehicle_type_id` |
-| `routes` | `pickup_location` text not null · `dropoff_location` text not null · `price` numeric(14,2) not null | check `price >= 0` · ยังไม่บังคับคู่ไม่ซ้ำ (รอ Q12) | `pickup_location`, `dropoff_location` |
+| `routes` | `pickup_location` text not null · `dropoff_location` text not null · `vehicle_type_id` integer FK (ว่างได้เฉพาะเส้นทางก่อน 2026-11-28) · `price` numeric(14,2) — ราคาเดียวแบบเดิม ว่างได้ตั้งแต่ 2026-11-28 เก็บไว้จนกว่าจะแก้เส้นทางครั้งถัดไป | check `price >= 0` · ยังไม่บังคับคู่ไม่ซ้ำ (รอ Q12) | `pickup_location`, `dropoff_location`, `vehicle_type_id` |
+| `route_rates` (D38, migration `0002`) | `route_id` integer not null FK (ลบเส้นทาง → ลบราคาตาม) · `fuel_price` smallint not null (บาท/ลิตร) · `price` numeric(14,2) not null | **unique (`route_id`, `fuel_price`)** · check `fuel_price between 25 and 50` · check `price >= 0` · ฟอร์มบันทึกรายการทั้งชุดแทนของเดิม (ใบงานคัดลอกค่าขนส่งไปแล้ว จึงไม่กระทบประวัติ) | unique ครอบ `route_id` |
 
 ### 3.4 ตารางรหัสและตัวนับ
 

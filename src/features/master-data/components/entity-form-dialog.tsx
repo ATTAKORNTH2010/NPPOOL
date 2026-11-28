@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/action-result";
+import { cn } from "@/lib/utils";
 
 /**
  * Add/edit dialog shared by the master-data screens (design 02, section 3.6):
@@ -32,6 +33,7 @@ export function EntityFormDialog<TInput extends FieldValues, TOutput>({
   schema,
   defaultValues,
   submit,
+  className,
   children,
 }: {
   open: boolean;
@@ -40,7 +42,9 @@ export function EntityFormDialog<TInput extends FieldValues, TOutput>({
   description?: string;
   schema: z.ZodType<TOutput, TInput>;
   defaultValues: TInput;
-  submit: (values: TInput) => Promise<ActionResult>;
+  submit: (values: TInput) => Promise<ActionResult<unknown>>;
+  /** Width override for forms with more in them, e.g. "sm:max-w-lg". */
+  className?: string;
   children: (form: UseFormReturn<TInput, unknown, TOutput>) => React.ReactNode;
 }) {
   const form = useForm<TInput, unknown, TOutput>({
@@ -70,7 +74,8 @@ export function EntityFormDialog<TInput extends FieldValues, TOutput>({
         if (!next) form.reset(defaultValues);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      {/* Long forms scroll inside the dialog instead of running off a short screen. */}
+      <DialogContent className={cn("max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md", className)}>
         <form noValidate onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>

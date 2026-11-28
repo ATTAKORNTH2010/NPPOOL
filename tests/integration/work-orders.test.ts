@@ -1,6 +1,16 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { customers, drivers, routes, users, vehicles, vehicleTypes, workOrders, workOrderVehicles } from "@/db/schema";
+import {
+  customers,
+  drivers,
+  routeRates,
+  routes,
+  users,
+  vehicles,
+  vehicleTypes,
+  workOrders,
+  workOrderVehicles,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed";
 import {
   EMPTY_VEHICLE_LINE,
@@ -86,7 +96,23 @@ describe("form options", () => {
     expect(options.customers.map((c) => c.name)).toEqual(["บริษัท ทดสอบ จำกัด"]);
     expect(options.statuses.some((s) => s.code === WORK_STATUS.CANCELLED)).toBe(false);
     expect(options.drivers).toEqual([{ id: ids.driver, name: "สมชาย ขับดี", phone: "089-111-2222" }]);
-    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", price: "3500.00" }]);
+    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", prices: ["3500.00"] }]);
+  });
+
+  it("gives each pair every price it can have, across vehicle types and fuel prices (2026-11-28)", async () => {
+    const audit = { createdBy: actor, updatedBy: actor };
+    const [byFuel] = await db
+      .insert(routes)
+      .values({ pickupLocation: "คลัง A", dropoffLocation: "โรงงาน B", vehicleTypeId: ids.type, ...audit })
+      .returning({ id: routes.id });
+    await db.insert(routeRates).values([
+      { routeId: byFuel!.id, fuelPrice: 26, price: "3700" },
+      { routeId: byFuel!.id, fuelPrice: 25, price: "3500" },
+    ]);
+    await db.insert(routes).values({ pickupLocation: "คลัง A", dropoffLocation: "ท่าเรือ C", price: "900", isActive: false, ...audit });
+
+    const options = await service.getWorkOrderFormOptions(db);
+    expect(options.routePairs).toEqual([{ pickup: "คลัง A", dropoff: "โรงงาน B", prices: ["3500.00", "3700.00"] }]);
   });
 });
 

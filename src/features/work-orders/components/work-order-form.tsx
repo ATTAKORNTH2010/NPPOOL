@@ -305,11 +305,21 @@ function CountField({
   );
 }
 
+/** "3,500.00 บาท", or "3,500.00–4,200.00 บาท" when the price depends on fuel price or vehicle type. */
+function priceHint(prices: string[]): string | undefined {
+  const low = prices[0];
+  const high = prices[prices.length - 1];
+  if (low === undefined || high === undefined) return undefined;
+  return low === high ? `${formatMoney(low)} บาท` : `${formatMoney(low)}–${formatMoney(high)} บาท`;
+}
+
 /**
  * BR-WO-05 + WO-18 (user request 2026-11-27): the pickup list comes from the
  * route list; once a known pickup is chosen, the drop-off list shows only the
- * places paired with it, each with its price, and picking one fills ค่าขนส่ง
- * (still editable). Free text stays allowed on both sides.
+ * places paired with it, each with its price. Picking one fills ค่าขนส่ง
+ * (still editable) when the pair has a single price; since prices follow the
+ * fuel price (2026-11-28) a pair often has several, and then the hint shows
+ * the range and the user types the fee. Free text stays allowed on both sides.
  */
 function PlacesSection({ form, options }: { form: Form; options: WorkOrderFormOptions }) {
   const pickup = useWatch({ control: form.control, name: "pickupLocation" }).trim();
@@ -324,12 +334,15 @@ function PlacesSection({ form, options }: { form: Form; options: WorkOrderFormOp
   const paired = options.routePairs.filter((pair) => pair.pickup === pickup);
   const dropoffSuggestions: Suggestion[] =
     paired.length > 0
-      ? paired.map((pair) => ({ value: pair.dropoff, hint: `${formatMoney(pair.price)} บาท` }))
+      ? paired.map((pair) => ({ value: pair.dropoff, hint: priceHint(pair.prices) }))
       : unique(options.routePairs.map((pair) => pair.dropoff)).map((place) => ({ value: place }));
 
   function pickDropoff(dropoff: string) {
     const route = paired.find((pair) => pair.dropoff === dropoff);
-    if (route) form.setValue("transportFee", route.price, { shouldDirty: true, shouldValidate: true });
+    const [only, ...others] = route?.prices ?? [];
+    if (only !== undefined && others.length === 0) {
+      form.setValue("transportFee", only, { shouldDirty: true, shouldValidate: true });
+    }
   }
 
   return (

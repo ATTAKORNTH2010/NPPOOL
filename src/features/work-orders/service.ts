@@ -8,6 +8,7 @@ import { alias } from "drizzle-orm/pg-core";
 import {
   customers,
   drivers,
+  routeRates,
   routes,
   users,
   vehicles,
@@ -40,11 +41,36 @@ const notDeleted = isNull(workOrders.deletedAt);
 
 // ---------------------------------------------------------------- form options
 
+export type RoutePair = { pickup: string; dropoff: string; prices: string[] };
+
+/** One pair per pickup → drop-off, whatever the vehicle type; prices come from the rates, else the old price. */
+function toRoutePairs(
+  rows: { pickup: string; dropoff: string; legacyPrice: string | null; ratePrice: string | null }[],
+): RoutePair[] {
+  const pairs = new Map<string, { pickup: string; dropoff: string; prices: Set<string> }>();
+  for (const row of rows) {
+    const key = JSON.stringify([row.pickup, row.dropoff]);
+    const pair = pairs.get(key) ?? { pickup: row.pickup, dropoff: row.dropoff, prices: new Set<string>() };
+    const price = row.ratePrice ?? row.legacyPrice;
+    if (price !== null) pair.prices.add(price);
+    pairs.set(key, pair);
+  }
+  // numeric(14,2) strings: compared as numbers for the order only.
+  return [...pairs.values()].map(({ prices, ...pair }) => ({
+    ...pair,
+    prices: [...prices].sort((a, b) => Number(a) - Number(b)),
+  }));
+}
+
 export type WorkOrderFormOptions = {
   customers: { id: number; name: string }[];
   statuses: { code: number; name: string }[];
-  /** Active pickup → drop-off pairs with their price (BR-WO-05, WO-18). */
-  routePairs: { pickup: string; dropoff: string; price: string }[];
+  /**
+   * Active pickup → drop-off pairs (BR-WO-05, WO-18) with every transport
+   * price they can have: one per fuel price and vehicle type since
+   * 2026-11-28, or a route's old single price. Lowest first, no repeats.
+   */
+  routePairs: RoutePair[];
   vehicleTypes: { id: number; name: string }[];
   drivers: { id: number; name: string; phone: string | null }[];
   vehicles: { id: number; plateNo: string; vehicleTypeId: number }[];
@@ -85,8 +111,14 @@ export async function getWorkOrderFormOptions(
       .where(ne(workStatuses.code, WORK_STATUS.CANCELLED))
       .orderBy(asc(workStatuses.sortOrder)),
     db
-      .select({ pickup: routes.pickupLocation, dropoff: routes.dropoffLocation, price: routes.price })
+      .select({
+        pickup: routes.pickupLocation,
+        dropoff: routes.dropoffLocation,
+        legacyPrice: routes.price,
+        ratePrice: routeRates.price,
+      })
       .from(routes)
+      .leftJoin(routeRates, eq(routeRates.routeId, routes.id))
       .where(eq(routes.isActive, true)),
     db
       .select({
@@ -125,7 +157,7 @@ export async function getWorkOrderFormOptions(
     ),
     statuses: statusRows,
     routePairs: sortByThai(
-      routeRows,
+      toRoutePairs(routeRows),
       (row) => row.pickup,
       (row) => row.dropoff,
     ),

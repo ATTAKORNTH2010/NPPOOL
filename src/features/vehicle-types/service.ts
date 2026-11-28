@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 import { vehicleTypes } from "@/db/schema";
-import type { AppDatabase } from "@/db/types";
+import type { AppDatabase, DbOrTx } from "@/db/types";
 import type { DeleteInput, SetActiveInput } from "@/features/master-data/schemas";
 import { assertFound, deleteOrExplain, withUniqueMessage } from "@/features/master-data/service-helpers";
+import { RuleError } from "@/lib/action-result";
 import { thaiCompare } from "@/lib/thai-sort";
 import type { UpdateVehicleTypeInput, VehicleTypeInput } from "./schemas";
 
@@ -22,6 +23,25 @@ export async function listVehicleTypes(db: AppDatabase): Promise<VehicleTypeRow[
     })
     .from(vehicleTypes);
   return rows.sort((a, b) => a.sortOrder - b.sortOrder || thaiCompare(a.name, b.name));
+}
+
+/**
+ * The vehicle type picked for a vehicle or a route must exist and be in use.
+ * `keptId`: the record's current type, which may stay even if it was
+ * deactivated later. Returns the type's name for the activity log.
+ */
+export async function assertUsableVehicleType(
+  db: DbOrTx,
+  vehicleTypeId: number,
+  keptId: number | null = null,
+): Promise<string> {
+  const [type] = await db
+    .select({ name: vehicleTypes.name, isActive: vehicleTypes.isActive })
+    .from(vehicleTypes)
+    .where(eq(vehicleTypes.id, vehicleTypeId))
+    .limit(1);
+  if (!type || (!type.isActive && vehicleTypeId !== keptId)) throw new RuleError("กรุณาเลือกประเภทรถที่ใช้งานอยู่");
+  return type.name;
 }
 
 export async function createVehicleType(db: AppDatabase, actorId: string, input: VehicleTypeInput) {
